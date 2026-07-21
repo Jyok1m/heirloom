@@ -4,6 +4,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { TreeAccessService } from '../auth/tree-access.service';
+import type { UserModel } from '../generated/prisma/models';
 import { TreesService } from '../trees/trees.service';
 import {
   AssistantContext,
@@ -15,6 +17,7 @@ import { AnthropicProvider } from './providers/anthropic.provider';
 import { OpenAiCompatProvider } from './providers/openai-compat.provider';
 import {
   AgentStreamEvent,
+  AgentTool,
   ChatTurn,
   LlmAgentProvider,
 } from './providers/provider.interface';
@@ -32,6 +35,12 @@ Guidelines:
 - Keep replies short and conversational; no headers or long lists unless asked.
 - Always reply in the language of the user.`;
 
+const ANONYMOUS_CONTEXT = `The user is NOT authenticated, and you have no tools.
+You may only:
+- answer general questions about Heirloom itself (an open source, self-hosted genealogy application: family trees, persons, unions, life events, sources, media, GEDCOM compatibility, data stays on the user's own server);
+- tell the user they must log in to talk about family data or use the assistant.
+Never discuss, invent or guess any family data. Keep replies short.`;
+
 export interface ChatResult {
   reply: string;
   actions: { tool: string; input: unknown; ok: boolean }[];
@@ -46,41 +55,68 @@ export class AssistantService {
     private readonly treesService: TreesService,
     private readonly toolsService: AssistantToolsService,
     private readonly store: ConversationStore,
+    private readonly access: TreeAccessService,
   ) {}
 
-  chat(request: ChatRequestDto): Promise<ChatResult> {
-    return this.run(request, undefined);
+  chat(request: ChatRequestDto, user?: UserModel): Promise<ChatResult> {
+    return this.run(request, user, undefined);
   }
 
   chatStream(
     request: ChatRequestDto,
+    user: UserModel | undefined,
     onEvent: (event: AgentStreamEvent) => void,
   ): Promise<ChatResult> {
-    return this.run(request, onEvent);
+    return this.run(request, user, onEvent);
   }
 
   private async run(
     { message, treeId, conversationId }: ChatRequestDto,
+    user: UserModel | undefined,
     onEvent?: (event: AgentStreamEvent) => void,
   ): Promise<ChatResult> {
     const provider = this.buildProvider();
+    const ctx: AssistantContext = {};
 
+    let tools: AgentTool[] = [];
     let context: string;
-    if (treeId) {
-      const tree = await this.treesService.findOne(treeId);
-      context = `Current family tree: "${tree.name}" (id ${tree.id}).`;
+
+    if (!user) {
+      // Anonymous: no tools, general facts about Heirloom only
+      context = ANONYMOUS_CONTEXT;
+      treeId = undefined;
     } else {
-      context = `No family tree is selected yet. Start by listing the existing trees (list_trees) or creating one (create_tree), then pass its treeId to the other tools. Guide the user step by step: create the tree, then their first persons, unions and events.`;
+      const readOnly = !this.access.canWrite(user);
+      const allowedTreeIds = await this.access.accessibleTreeIds(user);
+      if (treeId && user) await this.access.assertView(user, treeId);
+
+      tools = this.toolsService.buildTools({
+        treeId,
+        ctx,
+        readOnly,
+        allowedTreeIds,
+      });
+
+      if (treeId) {
+        const tree = await this.treesService.findOne(treeId);
+        context = `Current family tree: "${tree.name}" (id ${tree.id}).`;
+      } else if (readOnly) {
+        context = `No family tree is selected yet. List the trees the user can access (list_trees) and answer questions about them.`;
+      } else {
+        context = `No family tree is selected yet. Start by listing the existing trees (list_trees) or creating one (create_tree), then pass its treeId to the other tools. Guide the user step by step: create the tree, then their first persons, unions and events.`;
+      }
+      if (readOnly) {
+        context += `\nThe user has READ-ONLY access: answer questions, but any request to add or modify data must be politely declined — only an admin can do that.`;
+      }
     }
 
+    const userId = user?.id ?? null;
     const convId = conversationId ?? randomUUID();
     const messages: ChatTurn[] = [
-      ...this.store.get(convId),
+      ...(await this.store.get(convId, userId)),
       { role: 'user', content: message },
     ];
 
-    const ctx: AssistantContext = {};
-    const tools = this.toolsService.buildTools(treeId, ctx);
     const options = {
       system: `${SYSTEM_PROMPT}\n\n${context}`,
       messages,
@@ -92,7 +128,7 @@ export class AssistantService {
         ? await provider.runAgentStream(options, onEvent)
         : await provider.runAgent(options);
 
-    this.store.set(convId, [
+    await this.store.set(convId, userId, [
       ...messages,
       { role: 'assistant', content: result.reply },
     ]);

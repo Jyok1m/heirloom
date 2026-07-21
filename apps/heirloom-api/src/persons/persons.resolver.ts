@@ -8,7 +8,10 @@ import {
   ResolveField,
   Resolver,
 } from '@nestjs/graphql';
+import { CurrentUser } from '../auth/decorators';
+import { TreeAccessService } from '../auth/tree-access.service';
 import { EntityLoaders } from '../common/dataloaders/entity-loaders';
+import type { UserModel } from '../generated/prisma/models';
 import { Tree } from '../trees/models/tree.model';
 import { CreatePersonInput, UpdatePersonInput } from './dto/person.inputs';
 import { Person } from './models/person.model';
@@ -16,14 +19,19 @@ import { PersonsService } from './persons.service';
 
 @Resolver(() => Person)
 export class PersonsResolver {
-  constructor(private readonly personsService: PersonsService) {}
+  constructor(
+    private readonly personsService: PersonsService,
+    private readonly access: TreeAccessService,
+  ) {}
 
   @Query(() => [Person])
-  persons(
+  async persons(
+    @CurrentUser() user: UserModel,
     @Args('treeId', { type: () => ID }) treeId: string,
     @Args('skip', { type: () => Int, defaultValue: 0 }) skip: number,
     @Args('take', { type: () => Int, defaultValue: 50 }) take: number,
   ) {
+    await this.access.assertView(user, treeId);
     return this.personsService.findAll(treeId, skip, Math.min(take, 200));
   }
 

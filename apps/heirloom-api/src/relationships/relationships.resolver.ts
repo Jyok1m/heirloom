@@ -7,8 +7,11 @@ import {
   ResolveField,
   Resolver,
 } from '@nestjs/graphql';
+import { CurrentUser } from '../auth/decorators';
+import { TreeAccessService } from '../auth/tree-access.service';
 import { EntityLoaders } from '../common/dataloaders/entity-loaders';
 import { Pedigree } from '../generated/prisma/enums';
+import type { UserModel } from '../generated/prisma/models';
 import { Person } from '../persons/models/person.model';
 import { Tree } from '../trees/models/tree.model';
 import {
@@ -24,10 +27,15 @@ export class UnionsResolver {
   constructor(
     private readonly relationshipsService: RelationshipsService,
     private readonly loaders: EntityLoaders,
+    private readonly access: TreeAccessService,
   ) {}
 
   @Query(() => [Union])
-  unions(@Args('treeId', { type: () => ID }) treeId: string) {
+  async unions(
+    @CurrentUser() user: UserModel,
+    @Args('treeId', { type: () => ID }) treeId: string,
+  ) {
+    await this.access.assertView(user, treeId);
     return this.relationshipsService.findAll(treeId);
   }
 

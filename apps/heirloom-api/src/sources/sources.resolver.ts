@@ -7,8 +7,11 @@ import {
   ResolveField,
   Resolver,
 } from '@nestjs/graphql';
+import { CurrentUser } from '../auth/decorators';
+import { TreeAccessService } from '../auth/tree-access.service';
 import { EntityLoaders } from '../common/dataloaders/entity-loaders';
 import { Event } from '../events/models/event.model';
+import type { UserModel } from '../generated/prisma/models';
 import { Tree } from '../trees/models/tree.model';
 import {
   CreateCitationInput,
@@ -24,10 +27,15 @@ export class SourcesResolver {
   constructor(
     private readonly sourcesService: SourcesService,
     private readonly loaders: EntityLoaders,
+    private readonly access: TreeAccessService,
   ) {}
 
   @Query(() => [Source])
-  sources(@Args('treeId', { type: () => ID }) treeId: string) {
+  async sources(
+    @CurrentUser() user: UserModel,
+    @Args('treeId', { type: () => ID }) treeId: string,
+  ) {
+    await this.access.assertView(user, treeId);
     return this.sourcesService.findAll(treeId);
   }
 

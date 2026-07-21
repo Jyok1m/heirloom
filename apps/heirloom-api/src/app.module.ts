@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { AssistantModule } from './assistant/assistant.module';
+import { AuthModule } from './auth/auth.module';
 import { DataloadersModule } from './common/dataloaders/dataloaders.module';
 import { EventsModule } from './events/events.module';
 import { MediaModule } from './media/media.module';
@@ -28,8 +29,11 @@ import './graphql/enums';
       // consumed by the frontend GraphQL codegen (__dirname = dist/ at runtime).
       autoSchemaFile: join(__dirname, '../schema.gql'),
       sortSchema: true,
+      // Expose req/res to the auth guard and resolvers
+      context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
     }),
     PrismaModule,
+    AuthModule,
     DataloadersModule,
     TreesModule,
     PersonsModule,

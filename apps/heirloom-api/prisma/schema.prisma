@@ -68,6 +68,18 @@ enum MediaType {
   VIDEO
 }
 
+// ADMIN manages trees and invites; MEMBER accesses trees via memberships
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+// Per-tree access level granted through an invitation
+enum TreeRole {
+  VIEWER
+  CONTRIBUTOR
+}
+
 // ---------------------------------------------------------------------------
 // Core
 // ---------------------------------------------------------------------------
@@ -79,10 +91,64 @@ model Tree {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  persons Person[]
-  unions  Union[]
-  sources Source[]
-  media   Media[]
+  persons     Person[]
+  unions      Union[]
+  sources     Source[]
+  media       Media[]
+  memberships TreeMembership[]
+  invitations Invitation[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  role         UserRole @default(MEMBER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships        TreeMembership[]
+  invitationsCreated Invitation[]
+  conversations      Conversation[]
+}
+
+model TreeMembership {
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  treeId String
+  tree   Tree     @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  role   TreeRole
+  createdAt DateTime @default(now())
+
+  @@id([userId, treeId])
+  @@index([treeId])
+}
+
+// Single-use invite link granting access to one tree
+model Invitation {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  treeId      String
+  tree        Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  role        TreeRole
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// Assistant chat history (turns: [{role, content}])
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turns     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 model Person {

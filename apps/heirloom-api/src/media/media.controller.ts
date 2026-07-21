@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { Roles } from '../auth/decorators';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { MediaStorageService } from './media-storage.service';
 import { MediaService } from './media.service';
@@ -24,6 +25,7 @@ export class MediaController {
     private readonly storage: MediaStorageService,
   ) {}
 
+  @Roles('ADMIN')
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   upload(

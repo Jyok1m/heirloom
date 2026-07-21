@@ -67,10 +67,15 @@ export class AssistantToolsService {
     private readonly eventsService: EventsService,
   ) {}
 
-  buildTools(
-    boundTreeId: string | undefined,
-    ctx: AssistantContext,
-  ): AgentTool[] {
+  buildTools(options: {
+    treeId?: string;
+    ctx: AssistantContext;
+    // Read-only for non-admin users; writes stay admin-only
+    readOnly: boolean;
+    // Restricts members to the trees they were invited to (undefined = all)
+    allowedTreeIds?: string[];
+  }): AgentTool[] {
+    const { treeId: boundTreeId, ctx, readOnly, allowedTreeIds } = options;
     // In unbound mode the model must say which tree it operates on
     const treeProp = boundTreeId
       ? {}
@@ -86,25 +91,32 @@ export class AssistantToolsService {
         boundTreeId ??
         (typeof input.treeId === 'string' ? input.treeId : undefined);
       if (!id) throw new BadRequestException('treeId is required');
+      if (allowedTreeIds && !allowedTreeIds.includes(id)) {
+        throw new BadRequestException('You do not have access to this tree');
+      }
       return id;
     };
 
     const tools: AgentTool[] = [];
 
     if (!boundTreeId) {
-      tools.push(
-        {
-          name: 'list_trees',
-          description:
-            'List the existing family trees with their ids and names.',
-          inputSchema: schema({}),
-          execute: async () => ({
-            trees: await this.prisma.tree.findMany({
-              select: { id: true, name: true, description: true },
-              orderBy: { createdAt: 'asc' },
-            }),
+      tools.push({
+        name: 'list_trees',
+        description:
+          'List the family trees accessible to the user, with their ids and names.',
+        inputSchema: schema({}),
+        execute: async () => ({
+          trees: await this.prisma.tree.findMany({
+            where: allowedTreeIds ? { id: { in: allowedTreeIds } } : undefined,
+            select: { id: true, name: true, description: true },
+            orderBy: { createdAt: 'asc' },
           }),
-        },
+        }),
+      });
+    }
+
+    if (!boundTreeId && !readOnly) {
+      tools.push(
         {
           name: 'create_tree',
           description:
@@ -163,8 +175,14 @@ export class AssistantToolsService {
         description:
           'Get the full record of one person: identity, life events, unions with partners, children, and parents. Use this to answer "who is X" questions and before any update.',
         inputSchema: schema({ personId: { type: 'string' } }, ['personId']),
-        execute: ({ personId }) => this.getPersonDetails(String(personId)),
+        execute: ({ personId }) =>
+          this.getPersonDetails(String(personId), allowedTreeIds),
       },
+    );
+
+    if (readOnly) return tools;
+
+    tools.push(
       {
         name: 'create_person',
         description:
@@ -312,7 +330,7 @@ export class AssistantToolsService {
     }
   }
 
-  private async getPersonDetails(personId: string) {
+  private async getPersonDetails(personId: string, allowedTreeIds?: string[]) {
     const person = await this.prisma.person.findUnique({
       where: { id: personId },
       include: {
@@ -337,7 +355,12 @@ export class AssistantToolsService {
         },
       },
     });
-    if (!person) throw new NotFoundException(`Person ${personId} not found`);
+    if (
+      !person ||
+      (allowedTreeIds && !allowedTreeIds.includes(person.treeId))
+    ) {
+      throw new NotFoundException(`Person ${personId} not found`);
+    }
 
     const shortName = (p: {
       id: string;

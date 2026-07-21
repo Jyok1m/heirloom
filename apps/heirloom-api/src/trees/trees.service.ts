@@ -11,8 +11,12 @@ export class TreesService {
     private readonly mediaStorage: MediaStorageService,
   ) {}
 
-  findAll() {
-    return this.prisma.tree.findMany({ orderBy: { createdAt: 'asc' } });
+  // ids restricts the result to accessible trees (undefined = no restriction)
+  findAll(ids?: string[]) {
+    return this.prisma.tree.findMany({
+      where: ids ? { id: { in: ids } } : undefined,
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   async findOne(id: string) {
