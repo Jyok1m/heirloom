@@ -47,13 +47,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
-      .then(async (response) =>
-        response.ok ? ((await response.json()) as AuthUser) : null,
-      )
-      .then(setUser)
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    // In dev the API may still be booting when the page loads (vite is up
+    // first, nest restarts on file changes): retry before deciding
+    // the visitor is anonymous. A 401 is a real answer — no retry.
+    const bootstrap = async () => {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+          const response = await fetch('/api/auth/me', {
+            credentials: 'include',
+          });
+          if (cancelled) return;
+          setUser(response.ok ? ((await response.json()) as AuthUser) : null);
+          setLoading(false);
+          return;
+        } catch {
+          // Network/proxy error: API not up yet, wait and retry
+          await new Promise((resolve) =>
+            setTimeout(resolve, 400 * (attempt + 1)),
+          );
+        }
+      }
+      if (!cancelled) {
+        setUser(null);
+        setLoading(false);
+      }
+    };
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
