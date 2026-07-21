@@ -1,6 +1,38 @@
-import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
+import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+
+// SEO: substitute {{SITE_URL}} in index.html and emit robots.txt + sitemap.xml
+// with the deployment URL (PUBLIC_URL, falling back to FRONTEND_URL).
+function seoPlugin(siteUrl: string): Plugin {
+  const publicRoutes = ['/', '/login', '/signup'];
+  return {
+    name: 'heirloom-seo',
+    transformIndexHtml(html) {
+      return html.replaceAll('{{SITE_URL}}', siteUrl);
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'robots.txt',
+        source:
+          'User-agent: *\nAllow: /\n' +
+          (siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''),
+      });
+      const urls = publicRoutes
+        .map((route) => `  <url><loc>${siteUrl}${route}</loc></url>`)
+        .join('\n');
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sitemap.xml',
+        source:
+          '<?xml version="1.0" encoding="UTF-8"?>\n' +
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+          `${urls}\n</urlset>\n`,
+      });
+    },
+  };
+}
 
 // Proxy to the API without Vite's noisy stack traces while NestJS is
 // (re)starting: connection errors get a quiet one-liner and a 503 the
@@ -45,9 +77,12 @@ export default defineConfig(({ mode }) => {
   const envDir = '../..';
   const env = loadEnv(mode, envDir, '');
   const backendUrl = env.BACKEND_URL ?? 'http://localhost:3000';
+  // Absolute site URL for canonical/OG/sitemap. Self-hosters set PUBLIC_URL
+  // to their domain; otherwise fall back to FRONTEND_URL (dev/local).
+  const siteUrl = (env.PUBLIC_URL ?? env.FRONTEND_URL ?? '').replace(/\/$/, '');
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), seoPlugin(siteUrl)],
     envDir,
     server: {
       port: Number(env.FRONTEND_PORT ?? 5173),

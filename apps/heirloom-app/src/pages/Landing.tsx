@@ -5,6 +5,7 @@ import { ChatPanel } from '../components/ChatPanel';
 import { useAuth } from '../lib/auth';
 import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
+import { useTitle } from '../lib/useTitle';
 
 function Feature({
   icon,
@@ -35,6 +36,7 @@ function Feature({
 export function Landing() {
   const { t } = useI18n();
   const { user } = useAuth();
+  useTitle();
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col items-center px-4 pb-16 pt-12 sm:px-6 sm:pt-16">

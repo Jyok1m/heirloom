@@ -20,6 +20,7 @@ import { icons } from '../lib/icons';
 import { enumLabel, SEXES } from '../lib/genealogy';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
+import { useTitle } from '../lib/useTitle';
 import { useNotify } from '../lib/notify';
 
 const headerButton =
@@ -138,6 +139,7 @@ export function TreeView() {
   };
 
   const tree = data?.tree;
+  useTitle(tree?.name ?? undefined);
   const treeUnions = useMemo<TreeUnion[]>(
     () =>
       tree?.unions.map((union) => ({

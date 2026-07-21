@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthCard, FormError, inputClass, primaryButtonClass } from '../components/forms';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
+import { useTitle } from '../lib/useTitle';
 
 export function Login() {
   const { t } = useI18n();
   const { login } = useAuth();
+  useTitle(t('login'));
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

@@ -8,6 +8,7 @@ import { graphql } from '../generated';
 import { useAuth } from '../lib/auth';
 import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
+import { useTitle } from '../lib/useTitle';
 import { useNotify } from '../lib/notify';
 
 const TREES_QUERY = graphql(`
@@ -113,6 +114,7 @@ export function Trees() {
   const { t, lang } = useI18n();
   const { confirm } = useNotify();
   const { user } = useAuth();
+  useTitle(t('treesTitle'));
   const { data, loading, error } = useQuery(TREES_QUERY);
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(

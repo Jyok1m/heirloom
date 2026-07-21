@@ -9,3 +9,7 @@ apps/heirloom-api/src/generated/
 
 # Uploaded media files
 apps/heirloom-api/data/
+
+# Pasted screenshots at repo root
+/Capture*.png
+/Screenshot*.png

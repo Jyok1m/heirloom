@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthCard, FormError, inputClass, primaryButtonClass } from '../components/forms';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
+import { useTitle } from '../lib/useTitle';
 
 // Creates the first (admin) account of the instance; further members join
 // through invitation links sent by an admin.
 export function Signup() {
   const { t } = useI18n();
   const { signup } = useAuth();
+  useTitle(t('signUp'));
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');

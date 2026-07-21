@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="2" fill="#78716c" fill-opacity="0.10"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#faf7f0"/>
+  <rect width="1200" height="630" fill="url(#dots)"/>
+
+  <!-- Emblem -->
+  <g transform="translate(150 210)">
+    <rect width="130" height="130" rx="30" fill="url(#tile)"/>
+    <g transform="translate(21 21) scale(3.65)">
+      <g fill="none" stroke="#fdf4e3" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20v-6"/>
+        <path d="M12 14 12 8"/>
+        <path d="M12 14 7 11.5"/>
+        <path d="M12 14 17 11.5"/>
+        <path d="M12 20l-2.4 2.4M12 20l2.4 2.4"/>
+      </g>
+      <g fill="#fdf4e3">
+        <circle cx="12" cy="6.4" r="2.4"/>
+        <circle cx="6" cy="10.6" r="2.4"/>
+        <circle cx="18" cy="10.6" r="2.4"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Wordmark + tagline -->
+  <text x="330" y="270" font-family="Georgia, 'Times New Roman', serif" font-size="104" font-weight="700" fill="#292524">Heirloom</text>
+  <text x="336" y="340" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="38" fill="#78716c">Your family history, on your own server.</text>
+
+  <g transform="translate(336 386)">
+    <rect width="360" height="52" rx="26" fill="#fde68a" fill-opacity="0.6"/>
+    <text x="28" y="34" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="26" font-weight="600" fill="#92400e">Open source · Self-hosted</text>
+  </g>
+</svg>

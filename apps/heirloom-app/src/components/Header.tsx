@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
+import { Logo } from './Logo';
 
 export function Header() {
   const { lang, setLang, t } = useI18n();
@@ -15,8 +16,8 @@ export function Header() {
     <header className="sticky top-0 z-10 border-b border-amber-900/10 bg-[#faf7f0]/85 backdrop-blur dark:border-stone-800 dark:bg-stone-900/85">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-xl bg-linear-to-br from-amber-500 to-amber-700 text-sm text-white shadow-sm">
-            <FontAwesomeIcon icon={icons.tree} />
+          <span className="grid size-8 place-items-center rounded-xl bg-linear-to-br from-amber-500 to-amber-700 text-white shadow-sm">
+            <Logo className="size-5" />
           </span>
           <span className="font-display text-xl font-semibold tracking-tight text-stone-800 dark:text-stone-100">
             Heirloom

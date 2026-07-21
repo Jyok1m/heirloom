@@ -3,7 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Heirloom</title>
+
+    <title>Heirloom — open source, self-hosted genealogy</title>
+    <meta
+      name="description"
+      content="Heirloom is an open source, self-hosted genealogy app. Build your family tree, record lives, unions and events, attach photos and sources — your data never leaves your machine."
+    />
+    <meta
+      name="keywords"
+      content="genealogy, family tree, GEDCOM, self-hosted, open source, ancestry, family history"
+    />
+    <meta name="author" content="Heirloom" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      content="#faf7f0"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#1c1917"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link rel="canonical" href="{{SITE_URL}}/" />
+
+    <!-- Icons & PWA manifest -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="mask-icon" href="/favicon.svg" color="#d97706" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Heirloom" />
+    <meta
+      property="og:title"
+      content="Heirloom — your family history, on your own server"
+    />
+    <meta
+      property="og:description"
+      content="Open source, self-hosted genealogy. Build your family tree, record lives and unions, attach photos and sources — your data stays on your own machine."
+    />
+    <meta property="og:url" content="{{SITE_URL}}/" />
+    <meta property="og:image" content="{{SITE_URL}}/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Heirloom — open source, self-hosted genealogy"
+    />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="fr_FR" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Heirloom — your family history, on your own server"
+    />
+    <meta
+      name="twitter:description"
+      content="Open source, self-hosted genealogy. Your family tree, your data, your machine."
+    />
+    <meta name="twitter:image" content="{{SITE_URL}}/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Heirloom — open source, self-hosted genealogy"
+    />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Heirloom",
+        "applicationCategory": "LifestyleApplication",
+        "applicationSubCategory": "Genealogy",
+        "operatingSystem": "Web, Docker, Linux",
+        "description": "Open source, self-hosted genealogy. Build your family tree, record lives, unions and events, attach photos and sources — your data never leaves your machine.",
+        "url": "{{SITE_URL}}/",
+        "image": "{{SITE_URL}}/og-image.png",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
