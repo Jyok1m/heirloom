@@ -6,6 +6,9 @@
     "dev:api": "pnpm --filter heirloom-api dev",
     "dev:app": "pnpm --filter heirloom-app dev",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter heirloom-api db:generate",
+    "db:migrate": "pnpm --filter heirloom-api db:migrate",
+    "db:studio": "pnpm --filter heirloom-api db:studio"
   }
 }

@@ -5,7 +5,11 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "lint": "eslint \"src/**/*.ts\""
+    "lint": "eslint \"src/**/*.ts\"",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.28",
@@ -21,6 +25,7 @@
     "@nestjs/cli": "^11.0.24",
     "@types/node": "^26.1.1",
     "dotenv": "^17.4.2",
+    "dotenv-expand": "^13.0.0",
     "prisma": "^7.8.0",
     "typescript": "^6.0.3"
   }
