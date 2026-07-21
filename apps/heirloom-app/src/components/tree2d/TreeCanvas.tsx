@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { icons } from '../../lib/icons';
+import { useI18n } from '../../lib/i18n';
 import {
   CARD_H,
   CARD_W,
@@ -8,6 +9,7 @@ import {
   type TreePerson,
   type TreeUnion,
 } from './layout';
+import { usePositions } from './positions';
 
 const SEX_ACCENT: Record<TreePerson['sex'], string> = {
   MALE: '#5f8a8f',
@@ -32,24 +34,44 @@ interface Transform {
   scale: number;
 }
 
+type Interaction =
+  | { kind: 'pan'; sx: number; sy: number; ox: number; oy: number; moved: boolean }
+  | { kind: 'marquee'; sx: number; sy: number }
+  | {
+      kind: 'card';
+      ids: string[];
+      sx: number;
+      sy: number;
+      origins: Map<string, { x: number; y: number }>;
+      moved: boolean;
+    };
+
 export function TreeCanvas({
+  treeId,
   persons,
   unions,
   selectedId,
   selectedUnionId,
   onSelect,
   onSelectUnion,
+  isAdmin,
+  onRemovePersons,
 }: {
+  treeId: string;
   persons: TreePerson[];
   unions: TreeUnion[];
   selectedId: string | null;
   selectedUnionId: string | null;
   onSelect: (id: string | null) => void;
   onSelectUnion: (id: string) => void;
+  isAdmin: boolean;
+  onRemovePersons: (ids: string[]) => Promise<void>;
 }) {
+  const { t } = useI18n();
+  const { positions, move, commit, reset } = usePositions(treeId);
   const layout = useMemo(
-    () => layoutTree(persons, unions),
-    [persons, unions],
+    () => layoutTree(persons, unions, positions),
+    [persons, unions, positions],
   );
   const centers = useMemo(
     () =>
@@ -63,31 +85,33 @@ export function TreeCanvas({
   );
 
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [transform, setTransform] = useState<Transform>({
-    x: 0,
-    y: 0,
-    scale: 1,
-  });
-  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(
-    null,
-  );
+  const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
+  const [mode, setMode] = useState<'pan' | 'select'>('pan');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [marquee, setMarquee] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const interaction = useRef<Interaction | null>(null);
   const [fitted, setFitted] = useState(false);
 
-  // Fit the whole tree in view on first render / when it grows
   const fit = useCallback(() => {
     const el = viewportRef.current;
-    if (!el || layout.width === 0) return;
-    const scale = Math.min(
-      1.1,
-      (el.clientWidth - 40) / layout.width,
-      (el.clientHeight - 40) / layout.height,
-    );
+    if (!el) return;
+    const { minX, minY, maxX, maxY } = layout.bounds;
+    const w = maxX - minX;
+    const h = maxY - minY;
+    if (w <= 0 || h <= 0) return;
+    const scale = Math.min(1.1, (el.clientWidth - 40) / w, (el.clientHeight - 40) / h);
     setTransform({
       scale,
-      x: (el.clientWidth - layout.width * scale) / 2,
-      y: (el.clientHeight - layout.height * scale) / 2,
+      x: (el.clientWidth - w * scale) / 2 - minX * scale,
+      y: (el.clientHeight - h * scale) / 2 - minY * scale,
     });
-  }, [layout.width, layout.height]);
+  }, [layout.bounds]);
 
   useEffect(() => {
     if (!fitted && layout.boxes.length > 0) {
@@ -96,80 +120,191 @@ export function TreeCanvas({
     }
   }, [fit, fitted, layout.boxes.length]);
 
-  const onWheel = (event: React.WheelEvent) => {
-    event.preventDefault();
+  // Wheel = zoom the canvas only. React attaches onWheel as passive, so
+  // preventDefault() there is ignored and the page scrolls — bind natively.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const handler = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const px = event.clientX - rect.left;
+      const py = event.clientY - rect.top;
+      setTransform((tr) => {
+        const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+        const scale = Math.min(2.4, Math.max(0.15, tr.scale * factor));
+        const k = scale / tr.scale;
+        return { scale, x: px - (px - tr.x) * k, y: py - (py - tr.y) * k };
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
+
+  // --- background interactions (pan / marquee) ---
+  const onBgPointerDown = (event: React.PointerEvent) => {
     const el = viewportRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const px = event.clientX - rect.left;
-    const py = event.clientY - rect.top;
-    setTransform((t) => {
-      const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
-      const scale = Math.min(2.4, Math.max(0.2, t.scale * factor));
-      const k = scale / t.scale;
-      return {
-        scale,
-        x: px - (px - t.x) * k,
-        y: py - (py - t.y) * k,
+    const sx = event.clientX - rect.left;
+    const sy = event.clientY - rect.top;
+    if (mode === 'select' || event.shiftKey) {
+      interaction.current = { kind: 'marquee', sx, sy };
+      setMarquee({ x: sx, y: sy, w: 0, h: 0 });
+    } else {
+      interaction.current = {
+        kind: 'pan',
+        sx: event.clientX,
+        sy: event.clientY,
+        ox: transform.x,
+        oy: transform.y,
+        moved: false,
       };
-    });
+    }
+    try {
+      el.setPointerCapture(event.pointerId);
+    } catch {
+      /* no active pointer (synthetic event) */
+    }
   };
 
-  const linePaths = useMemo(() => {
-    const partnerLines: string[] = [];
-    const childLines: string[] = [];
-    for (const { union, x, y } of layout.unions) {
-      const partnerPts = union.partnerIds
-        .map((id) => centers.get(id))
-        .filter((c): c is { cx: number; cy: number } => !!c);
-      // link between partners (horizontal)
-      if (partnerPts.length === 2) {
-        partnerLines.push(
-          `M ${partnerPts[0].cx} ${partnerPts[0].cy} L ${partnerPts[1].cx} ${partnerPts[1].cy}`,
-        );
-      }
-      // links down to children (smooth vertical S-curve)
-      const startY = y + CARD_H / 2;
-      for (const childId of union.childIds) {
-        const child = centers.get(childId);
-        if (!child) continue;
-        const endY = child.cy - CARD_H / 2;
-        const midY = (startY + endY) / 2;
-        childLines.push(
-          `M ${x} ${startY} C ${x} ${midY}, ${child.cx} ${midY}, ${child.cx} ${endY}`,
-        );
-      }
+  const onBgPointerMove = (event: React.PointerEvent) => {
+    const it = interaction.current;
+    if (!it) return;
+    if (it.kind === 'pan') {
+      const dx = event.clientX - it.sx;
+      const dy = event.clientY - it.sy;
+      if (Math.hypot(dx, dy) > 3) it.moved = true;
+      setTransform((tr) => ({ ...tr, x: it.ox + dx, y: it.oy + dy }));
+    } else if (it.kind === 'marquee') {
+      const rect = viewportRef.current!.getBoundingClientRect();
+      const cx = event.clientX - rect.left;
+      const cy = event.clientY - rect.top;
+      setMarquee({
+        x: Math.min(it.sx, cx),
+        y: Math.min(it.sy, cy),
+        w: Math.abs(cx - it.sx),
+        h: Math.abs(cy - it.sy),
+      });
     }
-    return { partnerLines, childLines };
-  }, [layout.unions, centers]);
+  };
+
+  const onBgPointerUp = () => {
+    const it = interaction.current;
+    interaction.current = null;
+    if (it?.kind === 'marquee') {
+      const m = marquee;
+      setMarquee(null);
+      if (m && (m.w > 4 || m.h > 4)) {
+        const ax = (m.x - transform.x) / transform.scale;
+        const ay = (m.y - transform.y) / transform.scale;
+        const bx = (m.x + m.w - transform.x) / transform.scale;
+        const by = (m.y + m.h - transform.y) / transform.scale;
+        const sel = new Set<string>();
+        for (const box of layout.boxes) {
+          const cx = box.x + box.w / 2;
+          const cy = box.y + box.h / 2;
+          if (cx >= ax && cx <= bx && cy >= ay && cy <= by) sel.add(box.person.id);
+        }
+        setSelectedIds(sel);
+        onSelect(null);
+      } else {
+        setSelectedIds(new Set());
+        onSelect(null);
+      }
+    } else if (it?.kind === 'pan' && !it.moved) {
+      // background click: clear everything
+      setSelectedIds(new Set());
+      onSelect(null);
+    }
+  };
+
+  // --- card drag ---
+  const onCardPointerDown = (person: TreePerson, event: React.PointerEvent) => {
+    event.stopPropagation();
+    const inSelection = selectedIds.has(person.id) && selectedIds.size > 1;
+    const ids = inSelection ? [...selectedIds] : [person.id];
+    const origins = new Map<string, { x: number; y: number }>();
+    for (const id of ids) {
+      const box = layout.boxes.find((b) => b.person.id === id);
+      if (box) origins.set(id, { x: box.x, y: box.y });
+    }
+    interaction.current = {
+      kind: 'card',
+      ids,
+      sx: event.clientX,
+      sy: event.clientY,
+      origins,
+      moved: false,
+    };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* no active pointer */
+    }
+  };
+
+  const onCardPointerMove = (event: React.PointerEvent) => {
+    const it = interaction.current;
+    if (it?.kind !== 'card') return;
+    if (!it.moved && Math.hypot(event.clientX - it.sx, event.clientY - it.sy) > 4) {
+      it.moved = true;
+    }
+    if (!it.moved) return;
+    const dx = (event.clientX - it.sx) / transform.scale;
+    const dy = (event.clientY - it.sy) / transform.scale;
+    const updates = new Map<string, { x: number; y: number }>();
+    for (const [id, origin] of it.origins) {
+      updates.set(id, { x: origin.x + dx, y: origin.y + dy });
+    }
+    move(updates);
+  };
+
+  const onCardPointerUp = (person: TreePerson) => {
+    const it = interaction.current;
+    interaction.current = null;
+    if (it?.kind !== 'card') return;
+    if (it.moved) {
+      commit();
+    } else {
+      setSelectedIds(new Set());
+      onSelect(person.id);
+    }
+  };
+
+  const removeSelected = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    if (!window.confirm(t('confirmRemoveSelected').replace('{n}', String(ids.length)))) {
+      return;
+    }
+    setRemoving(true);
+    try {
+      await onRemovePersons(ids);
+      reset(ids);
+      setSelectedIds(new Set());
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  const toolButton = (active: boolean) =>
+    `grid size-8 place-items-center rounded-full text-sm transition ${
+      active
+        ? 'bg-amber-600 text-white'
+        : 'text-stone-500 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-700'
+    }`;
 
   return (
     <div
       ref={viewportRef}
-      className="relative h-full w-full cursor-grab touch-none overflow-hidden active:cursor-grabbing"
-      onWheel={onWheel}
-      onPointerDown={(event) => {
-        drag.current = {
-          x: event.clientX,
-          y: event.clientY,
-          ox: transform.x,
-          oy: transform.y,
-        };
-        (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
-      }}
-      onPointerMove={(event) => {
-        if (!drag.current) return;
-        setTransform((t) => ({
-          ...t,
-          x: drag.current!.ox + (event.clientX - drag.current!.x),
-          y: drag.current!.oy + (event.clientY - drag.current!.y),
-        }));
-      }}
-      onPointerUp={() => (drag.current = null)}
-      onPointerLeave={() => (drag.current = null)}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onSelect(null);
-      }}
+      className={`relative h-full w-full touch-none overflow-hidden ${
+        mode === 'select' ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'
+      }`}
+      onPointerDown={onBgPointerDown}
+      onPointerMove={onBgPointerMove}
+      onPointerUp={onBgPointerUp}
+      onPointerLeave={onBgPointerUp}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"
@@ -184,24 +319,39 @@ export function TreeCanvas({
           width={layout.width}
           height={layout.height}
         >
-          {linePaths.childLines.map((d, i) => (
-            <path
-              key={`c${i}`}
-              d={d}
-              fill="none"
-              className="stroke-stone-300 dark:stroke-stone-600"
-              strokeWidth={2}
-            />
-          ))}
-          {linePaths.partnerLines.map((d, i) => (
-            <path
-              key={`p${i}`}
-              d={d}
-              fill="none"
-              className="stroke-amber-400/70 dark:stroke-amber-600/60"
-              strokeWidth={2.5}
-            />
-          ))}
+          {layout.unions.map(({ union, x, y }) =>
+            union.childIds.map((childId) => {
+              const child = centers.get(childId);
+              if (!child) return null;
+              const startY = y + CARD_H / 2;
+              const endY = child.cy - CARD_H / 2;
+              const midY = (startY + endY) / 2;
+              return (
+                <path
+                  key={`${union.id}-${childId}`}
+                  d={`M ${x} ${startY} C ${x} ${midY}, ${child.cx} ${midY}, ${child.cx} ${endY}`}
+                  fill="none"
+                  className="stroke-stone-300 dark:stroke-stone-600"
+                  strokeWidth={2}
+                />
+              );
+            }),
+          )}
+          {layout.unions.map(({ union }) => {
+            const pts = union.partnerIds
+              .map((id) => centers.get(id))
+              .filter((c): c is { cx: number; cy: number } => !!c);
+            if (pts.length !== 2) return null;
+            return (
+              <path
+                key={`p-${union.id}`}
+                d={`M ${pts[0].cx} ${pts[0].cy} L ${pts[1].cx} ${pts[1].cy}`}
+                fill="none"
+                className="stroke-amber-400/70 dark:stroke-amber-600/60"
+                strokeWidth={2.5}
+              />
+            );
+          })}
           {layout.unions.map(({ union, x, y }) =>
             union.partnerIds.length >= 1 ? (
               <circle
@@ -220,13 +370,13 @@ export function TreeCanvas({
           )}
         </svg>
 
-        {/* Clickable union hit targets */}
         {layout.unions.map(({ union, x, y }) =>
           union.partnerIds.length >= 1 ? (
             <button
               type="button"
               key={union.id}
               aria-label="union"
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectUnion(union.id);
@@ -238,20 +388,23 @@ export function TreeCanvas({
         )}
 
         {layout.boxes.map(({ person, x, y }) => {
-          const selected = person.id === selectedId;
+          const isSingle = person.id === selectedId;
+          const inMarquee = selectedIds.has(person.id);
           return (
-            <button
-              type="button"
+            <div
               key={person.id}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(person.id);
-              }}
+              role="button"
+              tabIndex={0}
+              onPointerDown={(event) => onCardPointerDown(person, event)}
+              onPointerMove={onCardPointerMove}
+              onPointerUp={() => onCardPointerUp(person)}
               style={{ left: x, top: y, width: CARD_W, height: CARD_H }}
-              className={`absolute flex items-center gap-3 rounded-2xl border bg-white px-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-stone-800 ${
-                selected
+              className={`absolute flex touch-none select-none items-center gap-3 rounded-2xl border bg-white px-3 text-left shadow-sm transition-colors dark:bg-stone-800 ${
+                isSingle
                   ? 'border-amber-500 ring-2 ring-amber-500/40'
-                  : 'border-stone-200 dark:border-stone-700'
+                  : inMarquee
+                    ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-400/50 dark:bg-amber-950/40'
+                    : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
               }`}
             >
               <span
@@ -276,18 +429,87 @@ export function TreeCanvas({
                   />
                 </span>
               </span>
-            </button>
+            </div>
           );
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={fit}
-        className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/90 dark:text-stone-300 dark:ring-stone-700"
+      {marquee && (
+        <div
+          className="pointer-events-none absolute z-10 rounded border-2 border-amber-400 bg-amber-400/10"
+          style={{
+            left: marquee.x,
+            top: marquee.y,
+            width: marquee.w,
+            height: marquee.h,
+          }}
+        />
+      )}
+
+      {/* Toolbar */}
+      <div
+        onPointerDown={(event) => event.stopPropagation()}
+        className="absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm ring-1 ring-stone-200 backdrop-blur dark:bg-stone-800/90 dark:ring-stone-700"
       >
-        ⤢ Recentrer
-      </button>
+        <button
+          type="button"
+          onClick={() => setMode('pan')}
+          className={toolButton(mode === 'pan')}
+          title={t('panMode')}
+          aria-label={t('panMode')}
+        >
+          <FontAwesomeIcon icon={icons.pan} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('select')}
+          className={toolButton(mode === 'select')}
+          title={t('selectMode')}
+          aria-label={t('selectMode')}
+        >
+          <FontAwesomeIcon icon={icons.marquee} />
+        </button>
+        <span className="mx-0.5 h-5 w-px bg-stone-200 dark:bg-stone-700" />
+        <button
+          type="button"
+          onClick={fit}
+          className={toolButton(false)}
+          title={t('recenter')}
+          aria-label={t('recenter')}
+        >
+          <FontAwesomeIcon icon={icons.expand} />
+        </button>
+      </div>
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div
+          onPointerDown={(event) => event.stopPropagation()}
+          className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/95 px-4 py-2 text-sm shadow-lg ring-1 ring-stone-200 backdrop-blur dark:bg-stone-800/95 dark:ring-stone-700"
+        >
+          <span className="font-medium text-stone-700 dark:text-stone-200">
+            {selectedIds.size} {t('selectedCount')}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-stone-500 transition hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-100"
+          >
+            {t('deselect')}
+          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              disabled={removing}
+              onClick={removeSelected}
+              className="font-medium text-red-600 transition hover:text-red-700 disabled:opacity-50 dark:text-red-400"
+            >
+              <FontAwesomeIcon icon={icons.trash} className="mr-1" />
+              {t('removeSelected')}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

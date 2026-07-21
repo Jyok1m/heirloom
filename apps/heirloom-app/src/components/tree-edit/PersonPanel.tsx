@@ -10,6 +10,7 @@ import { MediaList } from './MediaList';
 import {
   ADD_CHILD,
   ADD_PARTNER,
+  CREATE_PERSON,
   CREATE_UNION,
   DELETE_PERSON,
   PERSON_DETAIL,
@@ -35,6 +36,7 @@ export function PersonPanel({
   isAdmin,
   onError,
   onOpenUnion,
+  onOpenPerson,
 }: {
   personId: string;
   treeId: string;
@@ -43,6 +45,7 @@ export function PersonPanel({
   isAdmin: boolean;
   onError(): void;
   onOpenUnion(id: string): void;
+  onOpenPerson(id: string): void;
 }) {
   const { t, lang } = useI18n();
   const { data } = useQuery(PERSON_DETAIL, { variables: { id: personId } });
@@ -50,6 +53,7 @@ export function PersonPanel({
     refetchQueries: REFETCH,
   });
   const [deletePerson] = useMutation(DELETE_PERSON, { refetchQueries: REFETCH });
+  const [createPerson] = useMutation(CREATE_PERSON, { refetchQueries: REFETCH });
   const [createUnion] = useMutation(CREATE_UNION, { refetchQueries: REFETCH });
   const [addPartner] = useMutation(ADD_PARTNER, { refetchQueries: REFETCH });
   const [addChild] = useMutation(ADD_CHILD, { refetchQueries: REFETCH });
@@ -58,6 +62,7 @@ export function PersonPanel({
 
   const person = data?.person;
   const [form, setForm] = useState<Record<string, string> | null>(null);
+  const [relBusy, setRelBusy] = useState(false);
 
   if (!person) {
     return (
@@ -84,6 +89,90 @@ export function PersonPanel({
   const partnerCandidates = others.filter((p) => p.id !== person.id);
 
   const fail = () => onError();
+
+  // Composite relationship shortcuts: create a blank relative, wire it up,
+  // then open its panel so the user can fill in the details.
+  const blankPerson = async () => {
+    const result = await createPerson({
+      variables: { input: { treeId, sex: 'UNKNOWN' as Sex } },
+    });
+    const id = result.data?.createPerson.id;
+    if (!id) throw new Error('create failed');
+    return id;
+  };
+
+  const runRelative = (build: () => Promise<string>) => {
+    if (relBusy) return;
+    setRelBusy(true);
+    build()
+      .then((newId) => onOpenPerson(newId))
+      .catch(fail)
+      .finally(() => setRelBusy(false));
+  };
+
+  const addSpouse = () =>
+    runRelative(async () => {
+      const spouseId = await blankPerson();
+      const union = await createUnion({
+        variables: { input: { treeId, type: 'MARRIAGE' } },
+      });
+      const unionId = union.data!.createUnion.id;
+      await addPartner({ variables: { unionId, personId: person.id } });
+      await addPartner({ variables: { unionId, personId: spouseId } });
+      return spouseId;
+    });
+
+  const addChildRelative = () =>
+    runRelative(async () => {
+      const childId = await blankPerson();
+      let unionId = person.unions[0]?.id;
+      if (!unionId) {
+        const union = await createUnion({
+          variables: { input: { treeId, type: 'UNKNOWN' } },
+        });
+        unionId = union.data!.createUnion.id;
+        await addPartner({ variables: { unionId, personId: person.id } });
+      }
+      await addChild({ variables: { input: { unionId, personId: childId } } });
+      return childId;
+    });
+
+  const addParent = () =>
+    runRelative(async () => {
+      const parentId = await blankPerson();
+      let unionId = person.parentUnions[0]?.id;
+      if (!unionId) {
+        const union = await createUnion({
+          variables: { input: { treeId, type: 'UNKNOWN' } },
+        });
+        unionId = union.data!.createUnion.id;
+        await addChild({ variables: { input: { unionId, personId: person.id } } });
+      }
+      await addPartner({ variables: { unionId, personId: parentId } });
+      return parentId;
+    });
+
+  const addSibling = () =>
+    runRelative(async () => {
+      const siblingId = await blankPerson();
+      let unionId = person.parentUnions[0]?.id;
+      if (!unionId) {
+        const union = await createUnion({
+          variables: { input: { treeId, type: 'UNKNOWN' } },
+        });
+        unionId = union.data!.createUnion.id;
+        await addChild({ variables: { input: { unionId, personId: person.id } } });
+      }
+      await addChild({ variables: { input: { unionId, personId: siblingId } } });
+      return siblingId;
+    });
+
+  const quickRelatives = [
+    { key: 'addParent' as const, icon: icons.parent, run: addParent },
+    { key: 'addSibling' as const, icon: icons.sibling, run: addSibling },
+    { key: 'addSpouse' as const, icon: icons.spouse, run: addSpouse },
+    { key: 'addChildRelative' as const, icon: icons.childRelative, run: addChildRelative },
+  ];
 
   return (
     <div>
@@ -162,6 +251,23 @@ export function PersonPanel({
           {updateState.loading ? t('submitting') : t('save')}
         </button>
       </form>
+
+      <Section title={t('quickRelatives')}>
+        <div className="grid grid-cols-2 gap-2">
+          {quickRelatives.map(({ key, icon, run }) => (
+            <button
+              key={key}
+              type="button"
+              disabled={relBusy}
+              onClick={run}
+              className="flex items-center justify-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-amber-300 hover:bg-amber-50 disabled:opacity-40 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+            >
+              <FontAwesomeIcon icon={icon} className="text-amber-600" />
+              {t(key)}
+            </button>
+          ))}
+        </div>
+      </Section>
 
       <EventList
         ownerType="person"

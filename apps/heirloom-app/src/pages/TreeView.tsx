@@ -7,6 +7,7 @@ import { PersonPanel } from '../components/tree-edit/PersonPanel';
 import { SourcesPanel } from '../components/tree-edit/SourcesPanel';
 import {
   CREATE_PERSON,
+  DELETE_PERSON,
   TREE_CANVAS,
   TREE_SOURCES,
 } from '../components/tree-edit/operations';
@@ -110,12 +111,29 @@ export function TreeView() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
-  const { data, loading } = useQuery(TREE_CANVAS, { variables: { id } });
+  const { data, loading, refetch } = useQuery(TREE_CANVAS, {
+    variables: { id },
+  });
   const { data: sourcesData } = useQuery(TREE_SOURCES, {
     variables: { id },
   });
+  const [deletePerson] = useMutation(DELETE_PERSON);
   const [panel, setPanel] = useState<Panel>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Bulk removal from the canvas marquee selection
+  const removePersons = async (ids: string[]) => {
+    try {
+      for (const personId of ids) {
+        await deletePerson({ variables: { id: personId } });
+      }
+      if (panel?.kind === 'person' && ids.includes(panel.id)) setPanel(null);
+    } catch {
+      setError(t('forbidden'));
+    } finally {
+      await refetch();
+    }
+  };
 
   const tree = data?.tree;
   const treeUnions = useMemo<TreeUnion[]>(
@@ -203,17 +221,20 @@ export function TreeView() {
         </div>
       </div>
 
-      <div className="h-[calc(100dvh-3.5rem)] w-full bg-[#faf7f0] bg-[radial-gradient(circle_at_1px_1px,rgba(120,113,108,0.12)_1px,transparent_0)] [background-size:22px_22px] dark:bg-stone-950 dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.05)_1px,transparent_0)]">
+      <div className="h-[calc(100dvh-3.5rem)] w-full bg-[#faf7f0] bg-[radial-gradient(circle_at_1px_1px,rgba(120,113,108,0.12)_1px,transparent_0)] bg-size-[22px_22px] dark:bg-stone-950 dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.05)_1px,transparent_0)]">
         {loading ? (
           <div className="grid h-full place-items-center">
             <span className="size-8 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
           </div>
         ) : tree && tree.persons.length > 0 ? (
           <TreeCanvas
+            treeId={id}
             persons={tree.persons as TreePerson[]}
             unions={treeUnions}
             selectedId={panel?.kind === 'person' ? panel.id : null}
             selectedUnionId={panel?.kind === 'union' ? panel.id : null}
+            isAdmin={isAdmin ?? false}
+            onRemovePersons={removePersons}
             onSelect={(value) => {
               setError(null);
               setPanel(value ? { kind: 'person', id: value } : null);
@@ -236,7 +257,7 @@ export function TreeView() {
       </div>
 
       {panel && (
-        <aside className="absolute bottom-4 right-4 top-16 z-10 w-[340px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
+        <aside className="absolute bottom-4 right-4 top-16 z-10 w-85 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
           <div className="mb-4 flex items-start justify-between gap-2">
             <h2 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
               {title}
@@ -270,6 +291,7 @@ export function TreeView() {
               isAdmin={isAdmin ?? false}
               onError={fail}
               onOpenUnion={(unionId) => setPanel({ kind: 'union', id: unionId })}
+              onOpenPerson={(pid) => setPanel({ kind: 'person', id: pid })}
             />
           )}
           {panel.kind === 'union' && (

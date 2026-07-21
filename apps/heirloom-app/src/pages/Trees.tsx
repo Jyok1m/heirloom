@@ -189,7 +189,7 @@ export function Trees() {
               className="group flex flex-col rounded-3xl bg-white p-5 shadow-sm ring-1 ring-amber-900/10 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/10 dark:bg-stone-900 dark:ring-stone-800"
             >
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 text-lg text-amber-700 dark:from-stone-800 dark:to-stone-800 dark:text-amber-400">
+                <span className="grid size-10 place-items-center rounded-xl bg-linear-to-br from-amber-100 to-orange-100 text-lg text-amber-700 dark:from-stone-800 dark:to-stone-800 dark:text-amber-400">
                   <FontAwesomeIcon icon={icons.tree} />
                 </span>
                 <h2 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-stone-900 dark:text-stone-100">
