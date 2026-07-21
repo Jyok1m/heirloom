@@ -18,18 +18,39 @@ input CreateTreeInput {
   name: String!
 }
 
+input CreateUnionInput {
+  notes: String
+  treeId: ID!
+  type: UnionType
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
 
 type Mutation {
+  addUnionChild(input: UnionChildInput!): Union!
+  addUnionPartner(personId: ID!, unionId: ID!): Union!
   createPerson(input: CreatePersonInput!): Person!
   createTree(input: CreateTreeInput!): Tree!
+  createUnion(input: CreateUnionInput!): Union!
   deletePerson(id: ID!): Person!
   deleteTree(id: ID!): Tree!
+  deleteUnion(id: ID!): Union!
+  removeUnionChild(personId: ID!, unionId: ID!): Union!
+  removeUnionPartner(personId: ID!, unionId: ID!): Union!
+  setUnionChildPedigree(pedigree: Pedigree!, personId: ID!, unionId: ID!): Union!
   updatePerson(id: ID!, input: UpdatePersonInput!): Person!
   updateTree(id: ID!, input: UpdateTreeInput!): Tree!
+  updateUnion(id: ID!, input: UpdateUnionInput!): Union!
+}
+
+enum Pedigree {
+  ADOPTED
+  BIRTH
+  FOSTER
+  UNKNOWN
 }
 
 type Person {
@@ -42,8 +63,10 @@ type Person {
   nameSuffix: String
   nickname: String
   notes: String
+  parentUnions: [Union!]!
   sex: Sex!
   treeId: ID!
+  unions: [Union!]!
   updatedAt: DateTime!
 }
 
@@ -52,6 +75,8 @@ type Query {
   persons(skip: Int! = 0, take: Int! = 50, treeId: ID!): [Person!]!
   tree(id: ID!): Tree!
   trees: [Tree!]!
+  union(id: ID!): Union!
+  unions(treeId: ID!): [Union!]!
 }
 
 enum Sex {
@@ -67,7 +92,40 @@ type Tree {
   id: ID!
   name: String!
   persons: [Person!]!
+  unions: [Union!]!
   updatedAt: DateTime!
+}
+
+type Union {
+  children: [UnionChild!]!
+  createdAt: DateTime!
+  gedcomId: String
+  id: ID!
+  notes: String
+  partners: [Person!]!
+  treeId: ID!
+  type: UnionType!
+  updatedAt: DateTime!
+}
+
+type UnionChild {
+  pedigree: Pedigree!
+  person: Person!
+  personId: ID!
+  unionId: ID!
+}
+
+input UnionChildInput {
+  pedigree: Pedigree
+  personId: ID!
+  unionId: ID!
+}
+
+enum UnionType {
+  CIVIL_UNION
+  MARRIAGE
+  PARTNERSHIP
+  UNKNOWN
 }
 
 input UpdatePersonInput {
@@ -83,4 +141,9 @@ input UpdatePersonInput {
 input UpdateTreeInput {
   description: String
   name: String
+}
+
+input UpdateUnionInput {
+  notes: String
+  type: UnionType
 }

@@ -1,6 +1,11 @@
 import { Injectable, Scope } from '@nestjs/common';
 import DataLoader from 'dataloader';
-import type { PersonModel as Person } from '../../generated/prisma/models';
+import type {
+  ChildInUnionModel as ChildInUnion,
+  PersonModel as Person,
+  UnionModel as Union,
+  UnionPartnerModel as UnionPartner,
+} from '../../generated/prisma/models';
 import { PrismaService } from '../../prisma/prisma.service';
 
 // Batches by primary key; resolves to null for missing ids
@@ -47,5 +52,48 @@ export class EntityLoaders {
       where: { treeId: { in: treeIds } },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     }),
+  );
+
+  readonly unionById = idLoader<Union>((ids) =>
+    this.prisma.union.findMany({ where: { id: { in: ids } } }),
+  );
+
+  readonly unionsByTreeId = groupLoader<Union>('treeId', (treeIds) =>
+    this.prisma.union.findMany({
+      where: { treeId: { in: treeIds } },
+      orderBy: { createdAt: 'asc' },
+    }),
+  );
+
+  readonly partnerLinksByUnionId = groupLoader<UnionPartner>(
+    'unionId',
+    (unionIds) =>
+      this.prisma.unionPartner.findMany({
+        where: { unionId: { in: unionIds } },
+      }),
+  );
+
+  readonly partnerLinksByPersonId = groupLoader<UnionPartner>(
+    'personId',
+    (personIds) =>
+      this.prisma.unionPartner.findMany({
+        where: { personId: { in: personIds } },
+      }),
+  );
+
+  readonly childLinksByUnionId = groupLoader<ChildInUnion>(
+    'unionId',
+    (unionIds) =>
+      this.prisma.childInUnion.findMany({
+        where: { unionId: { in: unionIds } },
+      }),
+  );
+
+  readonly childLinksByPersonId = groupLoader<ChildInUnion>(
+    'personId',
+    (personIds) =>
+      this.prisma.childInUnion.findMany({
+        where: { personId: { in: personIds } },
+      }),
   );
 }

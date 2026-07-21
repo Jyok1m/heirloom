@@ -1,6 +1,12 @@
 import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 
+export function isPrismaError(error: unknown, code: string): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === code
+  );
+}
+
 // Converts Prisma "record not found" (P2025) into a GraphQL-friendly 404
 export function rethrowAsNotFound(
   error: unknown,
