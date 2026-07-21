@@ -3,3 +3,6 @@ dist/
 .env
 *.local
 .DS_Store
+
+# Prisma generated client
+apps/heirloom-api/src/generated/

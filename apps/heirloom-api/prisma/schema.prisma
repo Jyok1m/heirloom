@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// GEDCOM SEX: M / F / U (X kept for intersex/other, exported as U)
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+// GEDCOM FAM: MARR is an event, the union itself is typed here
+enum UnionType {
+  MARRIAGE
+  CIVIL_UNION
+  PARTNERSHIP
+  UNKNOWN
+}
+
+// GEDCOM PEDI values
+enum Pedigree {
+  BIRTH
+  ADOPTED
+  FOSTER
+  UNKNOWN
+}
+
+// Individual events map to GEDCOM INDI tags, union events to FAM tags
+enum EventType {
+  // Person events
+  BIRTH
+  BAPTISM
+  DEATH
+  BURIAL
+  CREMATION
+  OCCUPATION
+  RESIDENCE
+  EDUCATION
+  EMIGRATION
+  IMMIGRATION
+  NATURALIZATION
+  // Union events
+  MARRIAGE
+  MARRIAGE_BANNS
+  ENGAGEMENT
+  DIVORCE
+  ANNULMENT
+  // Catch-all (GEDCOM EVEN with description)
+  OTHER
+}
+
+enum MediaType {
+  IMAGE
+  DOCUMENT
+  AUDIO
+  VIDEO
+}
+
+// ---------------------------------------------------------------------------
+// Core
+// ---------------------------------------------------------------------------
+
+model Tree {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  persons Person[]
+  unions  Union[]
+  sources Source[]
+  media   Media[]
+}
+
+model Person {
+  id       String  @id @default(uuid())
+  treeId   String
+  tree     Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  // GEDCOM xref (@I1@) preserved on import for round-trip export
+  gedcomId String?
+
+  firstName String?
+  lastName  String?
+  // GEDCOM NPFX / NSFX / NICK
+  namePrefix String?
+  nameSuffix String?
+  nickname   String?
+  sex        Sex     @default(UNKNOWN)
+  notes      String?
+
+  events       Event[]
+  unions       UnionPartner[]
+  parentLinks  ChildInUnion[]
+  media        MediaLink[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([treeId, gedcomId])
+  @@index([treeId, lastName, firstName])
+}
+
+// GEDCOM FAM record. Partners via UnionPartner (no husband/wife columns:
+// supports same-sex couples and single-parent families).
+model Union {
+  id       String    @id @default(uuid())
+  treeId   String
+  tree     Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  gedcomId String?
+  type     UnionType @default(UNKNOWN)
+  notes    String?
+
+  partners  UnionPartner[]
+  children  ChildInUnion[]
+  events    Event[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([treeId, gedcomId])
+}
+
+// GEDCOM FAM.HUSB / FAM.WIFE
+model UnionPartner {
+  unionId  String
+  union    Union  @relation(fields: [unionId], references: [id], onDelete: Cascade)
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([unionId, personId])
+  @@index([personId])
+}
+
+// GEDCOM FAM.CHIL + INDI.FAMC(PEDI). Filiation goes through the union,
+// which is the GEDCOM model; recursive CTEs join Person -> ChildInUnion
+// -> UnionPartner to walk ancestors/descendants.
+model ChildInUnion {
+  unionId  String
+  union    Union    @relation(fields: [unionId], references: [id], onDelete: Cascade)
+  personId String
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  pedigree Pedigree @default(BIRTH)
+
+  @@id([unionId, personId])
+  @@index([personId])
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+// Belongs to a person XOR a union (GEDCOM INDI event vs FAM event).
+// Genealogy dates are fuzzy ("ABT 1850", "BET 1912 AND 1914"): dateValue
+// keeps the GEDCOM date string verbatim, dateSort is a derived approximate
+// date used only for ordering and range queries.
+model Event {
+  id          String    @id @default(uuid())
+  type        EventType
+  // Required when type = OTHER (GEDCOM EVEN description)
+  description String?
+  dateValue   String?
+  dateSort    DateTime? @db.Date
+  place       String?
+  notes       String?
+
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
+  unionId  String?
+  union    Union?  @relation(fields: [unionId], references: [id], onDelete: Cascade)
+
+  citations Citation[]
+  media     MediaLink[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([personId, type])
+  @@index([unionId, type])
+  @@index([dateSort])
+}
+
+// ---------------------------------------------------------------------------
+// Sources & media
+// ---------------------------------------------------------------------------
+
+// GEDCOM SOUR record
+model Source {
+  id          String  @id @default(uuid())
+  treeId      String
+  tree        Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  gedcomId    String?
+  title       String
+  author      String?
+  publication String?
+  repository  String?
+  notes       String?
+
+  citations Citation[]
+  media     MediaLink[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([treeId, gedcomId])
+}
+
+// GEDCOM SOUR citation on an event (PAGE, QUAY)
+model Citation {
+  id       String @id @default(uuid())
+  eventId  String
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sourceId String
+  source   Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  // GEDCOM PAGE: where in the source
+  page     String?
+  // GEDCOM QUAY 0-3: reliability of the citation
+  quality  Int?
+
+  @@unique([eventId, sourceId, page])
+  @@index([sourceId])
+}
+
+// GEDCOM OBJE record. Files live on disk (self-hosted), filePath is
+// relative to the media root configured in the API.
+model Media {
+  id        String    @id @default(uuid())
+  treeId    String
+  tree      Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  gedcomId  String?
+  type      MediaType
+  filePath  String
+  mimeType  String
+  title     String?
+  notes     String?
+
+  links     MediaLink[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([treeId, gedcomId])
+}
+
+// One media file can illustrate persons, events or sources
+model MediaLink {
+  id       String  @id @default(uuid())
+  mediaId  String
+  media    Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
+  eventId  String?
+  event    Event?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sourceId String?
+  source   Source? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId])
+  @@index([personId])
+  @@index([eventId])
+  @@index([sourceId])
+}
