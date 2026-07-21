@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Body,
   Controller,
   Get,
@@ -12,7 +13,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { Roles } from '../auth/decorators';
+import { CurrentUser } from '../auth/decorators';
+import { TreeAccessService } from '../auth/tree-access.service';
+import type { UserModel } from '../generated/prisma/models';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { MediaStorageService } from './media-storage.service';
 import { MediaService } from './media.service';
@@ -23,17 +26,25 @@ export class MediaController {
   constructor(
     private readonly mediaService: MediaService,
     private readonly storage: MediaStorageService,
+    private readonly access: TreeAccessService,
   ) {}
 
-  @Roles('ADMIN')
+  // Admins and contributors of the target tree can upload
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  upload(
+  async upload(
+    @CurrentUser() user: UserModel,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() dto: UploadMediaDto,
   ) {
     if (!file) {
       throw new BadRequestException('Missing "file" multipart field');
+    }
+    if (!(await this.access.canContribute(user, dto.treeId))) {
+      await this.storage.discardTmp(file.path);
+      throw new ForbiddenException(
+        'You need contributor access to this tree',
+      );
     }
     return this.mediaService.createFromUpload(file, dto);
   }
