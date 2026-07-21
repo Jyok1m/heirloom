@@ -1,0 +1,11 @@
+{
+  "name": "heirloom",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:api": "pnpm --filter heirloom-api dev",
+    "dev:app": "pnpm --filter heirloom-app dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint"
+  }
+}
