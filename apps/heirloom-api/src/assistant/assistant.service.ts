@@ -61,31 +61,37 @@ export class AssistantService {
     };
   }
 
-  // AI_PROVIDER: anthropic | openai | llamacpp (OpenAI-compatible server)
+  // Empty strings in .env (AI_BASE_URL=) must behave like unset variables
+  private env(key: string): string | undefined {
+    const value = this.config.get<string>(key)?.trim();
+    return value ? value : undefined;
+  }
+
+  // AI_PROVIDER: anthropic | openai | ollama | llamacpp
   private buildProvider(): LlmAgentProvider {
-    const provider = this.config.get<string>('AI_PROVIDER');
-    const apiKey = this.config.get<string>('AI_API_KEY');
-    const model = this.config.get<string>('AI_MODEL');
+    const provider = this.env('AI_PROVIDER');
+    const apiKey = this.env('AI_API_KEY');
+    const model = this.env('AI_MODEL');
 
     switch (provider) {
       case 'anthropic':
         return new AnthropicProvider(apiKey, model ?? 'claude-opus-4-8');
       case 'openai':
         return new OpenAiCompatProvider(
-          this.config.get<string>('AI_BASE_URL') ?? 'https://api.openai.com/v1',
+          this.env('AI_BASE_URL') ?? 'https://api.openai.com/v1',
           apiKey,
           model ?? 'gpt-5-mini',
         );
       case 'ollama':
         return new OpenAiCompatProvider(
-          this.config.get<string>('AI_BASE_URL') ??
+          this.env('AI_BASE_URL') ??
             'http://localhost:11434/v1',
           apiKey,
           model ?? 'qwen3:4b',
         );
       case 'llamacpp':
         return new OpenAiCompatProvider(
-          this.config.get<string>('AI_BASE_URL') ?? 'http://localhost:8080/v1',
+          this.env('AI_BASE_URL') ?? 'http://localhost:8080/v1',
           apiKey,
           // llama.cpp serves whatever model it was started with
           model ?? 'default',
