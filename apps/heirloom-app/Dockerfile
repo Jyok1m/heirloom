@@ -24,6 +24,10 @@ FROM deps AS build
 COPY apps/heirloom-app apps/heirloom-app
 # schema.gql is referenced by codegen config; copy it so the workspace resolves
 COPY apps/heirloom-api/schema.gql apps/heirloom-api/schema.gql
+# Absolute site URL baked into canonical/OG tags, robots.txt and sitemap.xml.
+# Pass at build time: --build-arg PUBLIC_URL=https://your.domain
+ARG PUBLIC_URL=""
+ENV PUBLIC_URL=$PUBLIC_URL
 RUN pnpm --filter heirloom-app build
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,71 @@
+# Production stack — copy to the deploy host (e.g. /opt/heirloom/docker-compose.yml)
+# alongside a .env. The Jenkins pipeline drives it: `docker compose pull`,
+# `docker compose run --rm migrate`, `docker compose up -d api app`.
+#
+# Images come from Docker Hub (built by CI), so no build: context here.
+# DATABASE_URL is composed from POSTGRES_* and points at the `db` service
+# (the value in .env targets localhost for local dev — overridden below).
+
+x-db-url: &db-url
+  DATABASE_URL: postgresql://${POSTGRES_USER:-heirloom}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-heirloom}
+
+services:
+  db:
+    image: postgres:18.4-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-heirloom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-heirloom}
+    volumes:
+      - db_data:/var/lib/postgresql
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-heirloom}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot migrations. Not started by `up`; run explicitly before deploy:
+  #   docker compose run --rm migrate
+  migrate:
+    image: jyok1m/heirloom-api:migrate
+    env_file: .env
+    environment:
+      <<: *db-url
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+    restart: "no"
+
+  api:
+    image: jyok1m/heirloom-api:main
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *db-url
+      NODE_ENV: production
+    volumes:
+      - media:/prod/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+
+  app:
+    image: jyok1m/heirloom-app:main
+    restart: unless-stopped
+    # nginx proxies /api and /graphql to the `api` service (see nginx.conf).
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      - api
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  db_data:
+  media:

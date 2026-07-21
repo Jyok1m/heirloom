@@ -79,7 +79,14 @@ export default defineConfig(({ mode }) => {
   const backendUrl = env.BACKEND_URL ?? 'http://localhost:3000';
   // Absolute site URL for canonical/OG/sitemap. Self-hosters set PUBLIC_URL
   // to their domain; otherwise fall back to FRONTEND_URL (dev/local).
-  const siteUrl = (env.PUBLIC_URL ?? env.FRONTEND_URL ?? '').replace(/\/$/, '');
+  // process.env wins so CI can inject it as a Docker build-arg (no .env in the image).
+  // `||` (not `??`) so an empty string falls through to the next source.
+  const siteUrl = (
+    process.env.PUBLIC_URL ||
+    env.PUBLIC_URL ||
+    env.FRONTEND_URL ||
+    ''
+  ).replace(/\/$/, '');
 
   return {
     plugins: [react(), tailwindcss(), seoPlugin(siteUrl)],

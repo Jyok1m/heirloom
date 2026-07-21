@@ -41,6 +41,34 @@ pnpm db:studio    # browse data with Prisma Studio
 
 In production, apply migrations with `pnpm --filter heirloom-api db:deploy` (`prisma migrate deploy`: applies pending migrations without creating new ones).
 
+## Deployment & CI/CD
+
+The stack is designed for self-hosting with Docker Compose. CI builds multi-arch
+images (`linux/amd64` + `linux/arm64`) and pushes them to Docker Hub; the deploy
+host only pulls and runs them.
+
+**On the deploy host** — copy `docker-compose.prod.yml` to `/opt/heirloom/docker-compose.yml`
+and add a `.env` (from `.env.example`, with real secrets and `PUBLIC_URL` set to
+your domain). Then:
+
+```bash
+docker compose pull
+docker compose run --rm migrate     # apply pending migrations
+docker compose up -d api app        # nginx (app) proxies /api and /graphql to api
+```
+
+The frontend is served by nginx on `127.0.0.1:8081` — put it behind your reverse
+proxy (TLS, domain). `PUBLIC_URL` is baked into the frontend **at build time**
+(canonical/OG/sitemap), so CI passes it as a Docker build-arg.
+
+**Pipeline** (`Jenkinsfile` at the repo root, one job for the whole monorepo):
+a push to `main` triggers Jenkins via `.github/workflows/trigger_jenkins.yml`. The
+pipeline detects which app changed (`git diff`), builds/pushes only that image
+(tagged with the commit SHA + `main`), then runs migrations and restarts the
+changed services over SSH. Point the Jenkins job's "Pipeline script from SCM" at
+the root `Jenkinsfile`. Required Jenkins credentials: `dockerhub-credentials`,
+`host-ssh-key`, `host-ssh-port`.
+
 ## License
 
 Copyright (C) 2026 Joachim Jasmin

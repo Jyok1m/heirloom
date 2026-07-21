@@ -1,0 +1,18 @@
+name: Trigger Jenkins Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Jenkins job
+        run: |
+          curl -X POST \
+            "https://jenkins.joachimjasmin.com/job/${JENKINS_JOB}/build" \
+            --user "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
+            --fail --silent --show-error
+        env:
+          JENKINS_JOB: apps/job/heirloom
