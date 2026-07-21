@@ -70,12 +70,36 @@ export class AssistantToolsService {
   buildTools(options: {
     treeId?: string;
     ctx: AssistantContext;
-    // Read-only for non-admin users; writes stay admin-only
-    readOnly: boolean;
-    // Restricts members to the trees they were invited to (undefined = all)
+    // Trees the user can read (undefined = all, for admins)
     allowedTreeIds?: string[];
+    // Trees the user can write to (undefined = all; [] = read-only viewer).
+    // Deletions are impossible here regardless: no delete tool exists.
+    writableTreeIds?: string[];
   }): AgentTool[] {
-    const { treeId: boundTreeId, ctx, readOnly, allowedTreeIds } = options;
+    const { treeId: boundTreeId, ctx, allowedTreeIds, writableTreeIds } =
+      options;
+    const readOnly = writableTreeIds !== undefined && writableTreeIds.length === 0;
+    const isAdmin = writableTreeIds === undefined;
+    const assertWritable = (treeId: string) => {
+      if (writableTreeIds && !writableTreeIds.includes(treeId)) {
+        throw new BadRequestException(
+          'You do not have contributor access to this tree',
+        );
+      }
+    };
+    const requireWritableTree = (input: Record<string, unknown>): string => {
+      const id = requireTree(input);
+      assertWritable(id);
+      return id;
+    };
+    const unionTreeId = async (unionId: string): Promise<string> => {
+      const union = await this.prisma.union.findUnique({
+        where: { id: unionId },
+        select: { treeId: true },
+      });
+      if (!union) throw new NotFoundException(`Union ${unionId} not found`);
+      return union.treeId;
+    };
     // In unbound mode the model must say which tree it operates on
     const treeProp = boundTreeId
       ? {}
@@ -115,7 +139,7 @@ export class AssistantToolsService {
       });
     }
 
-    if (!boundTreeId && !readOnly) {
+    if (!boundTreeId && isAdmin) {
       tools.push(
         {
           name: 'create_tree',
@@ -189,7 +213,7 @@ export class AssistantToolsService {
           'Create a new person in the family tree. Returns the created person with its id.',
         inputSchema: schema({ ...treeProp, ...PERSON_FIELDS }, treeRequired),
         execute: (input) => {
-          const treeId = requireTree(input);
+          const treeId = requireWritableTree(input);
           const { treeId: _ignored, ...fields } = input;
           return this.personsService.create({
             treeId,
@@ -206,9 +230,11 @@ export class AssistantToolsService {
           ['personId'],
         ),
         execute: async ({ personId, ...fields }) => {
-          if (boundTreeId) {
-            await this.assertInTree(String(personId), boundTreeId);
+          const treeId = await this.personTreeId(String(personId));
+          if (boundTreeId && treeId !== boundTreeId) {
+            throw new NotFoundException('Person not found in this tree');
           }
+          assertWritable(treeId);
           return this.personsService.update(String(personId), fields);
         },
       },
@@ -229,7 +255,7 @@ export class AssistantToolsService {
           treeRequired,
         ),
         execute: async (input) => {
-          const treeId = requireTree(input);
+          const treeId = requireWritableTree(input);
           const union = await this.relationshipsService.create({
             treeId,
             type: input.type as UnionType | undefined,
@@ -253,11 +279,13 @@ export class AssistantToolsService {
           { unionId: { type: 'string' }, personId: { type: 'string' } },
           ['unionId', 'personId'],
         ),
-        execute: ({ unionId, personId }) =>
-          this.relationshipsService.addPartner(
+        execute: async ({ unionId, personId }) => {
+          assertWritable(await unionTreeId(String(unionId)));
+          return this.relationshipsService.addPartner(
             String(unionId),
             String(personId),
-          ),
+          );
+        },
       },
       {
         name: 'add_union_child',
@@ -271,12 +299,14 @@ export class AssistantToolsService {
           },
           ['unionId', 'personId'],
         ),
-        execute: ({ unionId, personId, pedigree }) =>
-          this.relationshipsService.addChild(
+        execute: async ({ unionId, personId, pedigree }) => {
+          assertWritable(await unionTreeId(String(unionId)));
+          return this.relationshipsService.addChild(
             String(unionId),
             String(personId),
             pedigree as Pedigree | undefined,
-          ),
+          );
+        },
       },
       {
         name: 'create_event',
@@ -291,8 +321,16 @@ export class AssistantToolsService {
           ['type'],
         ),
         execute: async (input) => {
-          if (input.personId && boundTreeId) {
-            await this.assertInTree(String(input.personId), boundTreeId);
+          const ownerTree = input.personId
+            ? await this.personTreeId(String(input.personId))
+            : input.unionId
+              ? await unionTreeId(String(input.unionId))
+              : undefined;
+          if (ownerTree) {
+            if (boundTreeId && ownerTree !== boundTreeId) {
+              throw new NotFoundException('Not found in this tree');
+            }
+            assertWritable(ownerTree);
           }
           const { dateSort, ...rest } = input;
           return this.eventsService.create({
@@ -308,26 +346,39 @@ export class AssistantToolsService {
         inputSchema: schema({ eventId: { type: 'string' }, ...EVENT_FIELDS }, [
           'eventId',
         ]),
-        execute: ({ eventId, dateSort, ...fields }) =>
-          this.eventsService.update(String(eventId), {
+        execute: async ({ eventId, dateSort, ...fields }) => {
+          assertWritable(await this.eventTreeId(String(eventId)));
+          return this.eventsService.update(String(eventId), {
             ...(fields as object),
             dateSort: dateSort ? new Date(String(dateSort)) : undefined,
-          } as Parameters<EventsService['update']>[1]),
+          } as Parameters<EventsService['update']>[1]);
+        },
       },
     );
 
     return tools;
   }
 
-  // The chat is scoped to one tree; reject ids pointing elsewhere
-  private async assertInTree(personId: string, treeId: string) {
+  private async personTreeId(personId: string): Promise<string> {
     const person = await this.prisma.person.findUnique({
       where: { id: personId },
       select: { treeId: true },
     });
-    if (!person || person.treeId !== treeId) {
-      throw new NotFoundException(`Person ${personId} not found in this tree`);
-    }
+    if (!person) throw new NotFoundException(`Person ${personId} not found`);
+    return person.treeId;
+  }
+
+  private async eventTreeId(eventId: string): Promise<string> {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        person: { select: { treeId: true } },
+        union: { select: { treeId: true } },
+      },
+    });
+    const treeId = event?.person?.treeId ?? event?.union?.treeId;
+    if (!treeId) throw new NotFoundException(`Event ${eventId} not found`);
+    return treeId;
   }
 
   private async getPersonDetails(personId: string, allowedTreeIds?: string[]) {

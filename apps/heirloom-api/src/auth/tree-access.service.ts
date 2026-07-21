@@ -35,4 +35,23 @@ export class TreeAccessService {
   canWrite(user: UserModel): boolean {
     return user.role === 'ADMIN';
   }
+
+  // Trees where the user can create/update content (no deletions).
+  // undefined = unrestricted (admin)
+  async writableTreeIds(user: UserModel): Promise<string[] | undefined> {
+    if (user.role === 'ADMIN') return undefined;
+    const memberships = await this.prisma.treeMembership.findMany({
+      where: { userId: user.id, role: 'CONTRIBUTOR' },
+      select: { treeId: true },
+    });
+    return memberships.map((m) => m.treeId);
+  }
+
+  async canContribute(user: UserModel, treeId: string): Promise<boolean> {
+    if (user.role === 'ADMIN') return true;
+    const membership = await this.prisma.treeMembership.findUnique({
+      where: { userId_treeId: { userId: user.id, treeId } },
+    });
+    return membership?.role === 'CONTRIBUTOR';
+  }
 }

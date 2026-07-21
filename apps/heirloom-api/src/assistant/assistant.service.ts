@@ -86,27 +86,33 @@ export class AssistantService {
       context = ANONYMOUS_CONTEXT;
       treeId = undefined;
     } else {
-      const readOnly = !this.access.canWrite(user);
       const allowedTreeIds = await this.access.accessibleTreeIds(user);
-      if (treeId && user) await this.access.assertView(user, treeId);
+      const writableTreeIds = await this.access.writableTreeIds(user);
+      const isAdmin = writableTreeIds === undefined;
+      if (treeId) await this.access.assertView(user, treeId);
+      const canWriteHere = treeId
+        ? isAdmin || writableTreeIds.includes(treeId)
+        : isAdmin || (writableTreeIds?.length ?? 0) > 0;
 
       tools = this.toolsService.buildTools({
         treeId,
         ctx,
-        readOnly,
         allowedTreeIds,
+        writableTreeIds,
       });
 
       if (treeId) {
         const tree = await this.treesService.findOne(treeId);
         context = `Current family tree: "${tree.name}" (id ${tree.id}).`;
-      } else if (readOnly) {
-        context = `No family tree is selected yet. List the trees the user can access (list_trees) and answer questions about them.`;
-      } else {
+      } else if (isAdmin) {
         context = `No family tree is selected yet. Start by listing the existing trees (list_trees) or creating one (create_tree), then pass its treeId to the other tools. Guide the user step by step: create the tree, then their first persons, unions and events.`;
+      } else {
+        context = `No family tree is selected yet. List the trees the user can access (list_trees) and answer questions about them.`;
       }
-      if (readOnly) {
-        context += `\nThe user has READ-ONLY access: answer questions, but any request to add or modify data must be politely declined — only an admin can do that.`;
+      if (!canWriteHere) {
+        context += `\nThe user has READ-ONLY access here: answer questions, but any request to add or modify data must be politely declined — an admin or a contributor must do it.`;
+      } else if (!isAdmin) {
+        context += `\nThe user is a CONTRIBUTOR: they can add and modify persons, unions and events on their trees, but deletions are reserved to admins.`;
       }
     }
 

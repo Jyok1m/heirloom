@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { MutationScopeService } from './mutation-scope.service';
 import { TreeAccessService } from './tree-access.service';
 
 @Global()
@@ -31,8 +32,9 @@ import { TreeAccessService } from './tree-access.service';
   providers: [
     AuthService,
     TreeAccessService,
+    MutationScopeService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [AuthService, TreeAccessService],
+  exports: [AuthService, TreeAccessService, MutationScopeService],
 })
 export class AuthModule {}

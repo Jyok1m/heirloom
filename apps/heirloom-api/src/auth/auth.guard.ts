@@ -11,6 +11,8 @@ import { JwtService } from '@nestjs/jwt';
 import type { GraphQLResolveInfo } from 'graphql';
 import { PrismaService } from '../prisma/prisma.service';
 import { IS_PUBLIC_KEY, requestOf, ROLES_KEY } from './decorators';
+import { MutationScopeService } from './mutation-scope.service';
+import { TreeAccessService } from './tree-access.service';
 
 export interface JwtPayload {
   sub: string;
@@ -24,6 +26,8 @@ export class AuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly scope: MutationScopeService,
+    private readonly access: TreeAccessService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -61,15 +65,30 @@ export class AuthGuard implements CanActivate {
       throw new ForbiddenException('Insufficient role');
     }
 
-    // Writes on the GraphQL API are reserved to admins
-    if (context.getType<GqlContextType>() === 'graphql') {
-      const info =
-        GqlExecutionContext.create(context).getInfo<GraphQLResolveInfo>();
-      if (
-        info.operation.operation === 'mutation' &&
-        req.user.role !== 'ADMIN'
-      ) {
-        throw new ForbiddenException('Mutations require an admin account');
+    // GraphQL writes: admins do everything; contributors can create/update
+    // on their trees; deletions and tree lifecycle stay admin-only.
+    if (
+      context.getType<GqlContextType>() === 'graphql' &&
+      req.user.role !== 'ADMIN'
+    ) {
+      const gqlContext = GqlExecutionContext.create(context);
+      const info = gqlContext.getInfo<GraphQLResolveInfo>();
+      if (info.operation.operation === 'mutation') {
+        const field = info.fieldName;
+        if (this.scope.isDeletion(field) || this.scope.isAdminOnly(field)) {
+          throw new ForbiddenException(
+            'This operation requires an admin account',
+          );
+        }
+        const treeId = await this.scope.resolveTreeId(
+          field,
+          gqlContext.getArgs(),
+        );
+        if (!treeId || !(await this.access.canContribute(req.user, treeId))) {
+          throw new ForbiddenException(
+            'You need contributor access to this tree',
+          );
+        }
       }
     }
 
