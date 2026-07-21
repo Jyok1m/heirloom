@@ -14,10 +14,24 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "\n  query TreeDetail($id: ID!) {\n    tree(id: $id) {\n      id\n      name\n      persons {\n        id\n        firstName\n        lastName\n        sex\n        notes\n      }\n      unions {\n        id\n        type\n        partners {\n          id\n        }\n        children {\n          person {\n            id\n          }\n        }\n      }\n    }\n  }\n": typeof types.TreeDetailDocument,
+    "\n  mutation CreatePersonM($input: CreatePersonInput!) {\n    createPerson(input: $input) {\n      id\n    }\n  }\n": typeof types.CreatePersonMDocument,
+    "\n  mutation UpdatePersonM($id: ID!, $input: UpdatePersonInput!) {\n    updatePerson(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdatePersonMDocument,
+    "\n  mutation DeletePersonM($id: ID!) {\n    deletePerson(id: $id) {\n      id\n    }\n  }\n": typeof types.DeletePersonMDocument,
+    "\n  mutation CreateUnionM($input: CreateUnionInput!) {\n    createUnion(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateUnionMDocument,
+    "\n  mutation AddUnionPartnerM($unionId: ID!, $personId: ID!) {\n    addUnionPartner(unionId: $unionId, personId: $personId) {\n      id\n    }\n  }\n": typeof types.AddUnionPartnerMDocument,
+    "\n  mutation AddUnionChildM($input: UnionChildInput!) {\n    addUnionChild(input: $input) {\n      id\n    }\n  }\n": typeof types.AddUnionChildMDocument,
     "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n": typeof types.TreesDocument,
     "\n  mutation CreateTree($input: CreateTreeInput!) {\n    createTree(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.CreateTreeDocument,
 };
 const documents: Documents = {
+    "\n  query TreeDetail($id: ID!) {\n    tree(id: $id) {\n      id\n      name\n      persons {\n        id\n        firstName\n        lastName\n        sex\n        notes\n      }\n      unions {\n        id\n        type\n        partners {\n          id\n        }\n        children {\n          person {\n            id\n          }\n        }\n      }\n    }\n  }\n": types.TreeDetailDocument,
+    "\n  mutation CreatePersonM($input: CreatePersonInput!) {\n    createPerson(input: $input) {\n      id\n    }\n  }\n": types.CreatePersonMDocument,
+    "\n  mutation UpdatePersonM($id: ID!, $input: UpdatePersonInput!) {\n    updatePerson(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdatePersonMDocument,
+    "\n  mutation DeletePersonM($id: ID!) {\n    deletePerson(id: $id) {\n      id\n    }\n  }\n": types.DeletePersonMDocument,
+    "\n  mutation CreateUnionM($input: CreateUnionInput!) {\n    createUnion(input: $input) {\n      id\n    }\n  }\n": types.CreateUnionMDocument,
+    "\n  mutation AddUnionPartnerM($unionId: ID!, $personId: ID!) {\n    addUnionPartner(unionId: $unionId, personId: $personId) {\n      id\n    }\n  }\n": types.AddUnionPartnerMDocument,
+    "\n  mutation AddUnionChildM($input: UnionChildInput!) {\n    addUnionChild(input: $input) {\n      id\n    }\n  }\n": types.AddUnionChildMDocument,
     "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n": types.TreesDocument,
     "\n  mutation CreateTree($input: CreateTreeInput!) {\n    createTree(input: $input) {\n      id\n      name\n    }\n  }\n": types.CreateTreeDocument,
 };
@@ -36,6 +50,34 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TreeDetail($id: ID!) {\n    tree(id: $id) {\n      id\n      name\n      persons {\n        id\n        firstName\n        lastName\n        sex\n        notes\n      }\n      unions {\n        id\n        type\n        partners {\n          id\n        }\n        children {\n          person {\n            id\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query TreeDetail($id: ID!) {\n    tree(id: $id) {\n      id\n      name\n      persons {\n        id\n        firstName\n        lastName\n        sex\n        notes\n      }\n      unions {\n        id\n        type\n        partners {\n          id\n        }\n        children {\n          person {\n            id\n          }\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreatePersonM($input: CreatePersonInput!) {\n    createPerson(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation CreatePersonM($input: CreatePersonInput!) {\n    createPerson(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdatePersonM($id: ID!, $input: UpdatePersonInput!) {\n    updatePerson(id: $id, input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation UpdatePersonM($id: ID!, $input: UpdatePersonInput!) {\n    updatePerson(id: $id, input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeletePersonM($id: ID!) {\n    deletePerson(id: $id) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation DeletePersonM($id: ID!) {\n    deletePerson(id: $id) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateUnionM($input: CreateUnionInput!) {\n    createUnion(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation CreateUnionM($input: CreateUnionInput!) {\n    createUnion(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddUnionPartnerM($unionId: ID!, $personId: ID!) {\n    addUnionPartner(unionId: $unionId, personId: $personId) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation AddUnionPartnerM($unionId: ID!, $personId: ID!) {\n    addUnionPartner(unionId: $unionId, personId: $personId) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddUnionChildM($input: UnionChildInput!) {\n    addUnionChild(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation AddUnionChildM($input: UnionChildInput!) {\n    addUnionChild(input: $input) {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

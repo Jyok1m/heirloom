@@ -1,5 +1,5 @@
 import { ApolloProvider } from '@apollo/client/react';
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import {
   BrowserRouter,
   Navigate,
@@ -15,6 +15,11 @@ import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Trees } from './pages/Trees';
+
+// Three.js is heavy: load the 3D view only when visiting a tree
+const TreeView = lazy(() =>
+  import('./pages/TreeView').then((m) => ({ default: m.TreeView })),
+);
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -39,6 +44,22 @@ function Shell() {
             element={
               <RequireAuth>
                 <Trees />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trees/:id"
+            element={
+              <RequireAuth>
+                <Suspense
+                  fallback={
+                    <div className="grid h-[calc(100dvh-3.5rem)] place-items-center">
+                      <span className="size-8 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
+                    </div>
+                  }
+                >
+                  <TreeView />
+                </Suspense>
               </RequireAuth>
             }
           />

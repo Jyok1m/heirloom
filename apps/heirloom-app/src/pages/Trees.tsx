@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { inputClass, primaryButtonClass } from '../components/forms';
 import { graphql } from '../generated';
 import { useAuth } from '../lib/auth';
@@ -160,8 +161,9 @@ export function Trees() {
       {data && data.trees.length > 0 && (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.trees.map((tree) => (
-            <article
+            <Link
               key={tree.id}
+              to={`/trees/${tree.id}`}
               className="group flex flex-col rounded-3xl bg-white p-5 shadow-sm ring-1 ring-amber-900/10 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/10 dark:bg-stone-900 dark:ring-stone-800"
             >
               <div className="flex items-center gap-3">
@@ -189,7 +191,7 @@ export function Trees() {
                   )}
                 </span>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       )}
