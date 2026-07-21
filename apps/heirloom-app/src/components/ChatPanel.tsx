@@ -1,6 +1,8 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useRef, useState } from 'react';
 import { streamChat, type AssistantAction } from '../lib/assistant';
 import { useAuth } from '../lib/auth';
+import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 
 interface Message {
@@ -102,8 +104,8 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
       className="flex w-full flex-col overflow-hidden rounded-3xl bg-white shadow-xl shadow-amber-900/10 ring-1 ring-amber-900/10 dark:bg-stone-900 dark:shadow-black/30 dark:ring-stone-700/60"
     >
       <div className="flex items-center gap-3 border-b border-amber-900/10 bg-linear-to-r from-amber-50 to-orange-50/60 px-5 py-3.5 dark:border-stone-800 dark:from-stone-900 dark:to-stone-900">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-amber-500 to-amber-700 text-base text-white shadow-sm">
-          ✦
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-amber-500 to-amber-700 text-white shadow-sm">
+          <FontAwesomeIcon icon={icons.assistant} />
         </span>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
@@ -141,7 +143,8 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
                       key={j}
                       className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                     >
-                      ⚙ {action.tool}
+                      <FontAwesomeIcon icon={icons.gear} className="mr-1" />
+                      {action.tool}
                     </span>
                   ))}
                 </div>
@@ -196,9 +199,7 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
             {busy ? (
               <span className="size-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
             ) : (
-              <svg viewBox="0 0 20 20" fill="currentColor" className="size-4">
-                <path d="M3.1 2.3a.75.75 0 0 0-1 .9l1.9 6.05a.75.75 0 0 0 .58.51l6.3 1.09c.28.05.28.45 0 .5l-6.3 1.1a.75.75 0 0 0-.58.5l-1.9 6.06a.75.75 0 0 0 1 .9l15.1-7.13a.75.75 0 0 0 0-1.35L3.1 2.3Z" />
-              </svg>
+              <FontAwesomeIcon icon={icons.send} className="size-4" />
             )}
           </button>
         </div>

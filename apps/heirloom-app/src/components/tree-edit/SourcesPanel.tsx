@@ -1,5 +1,7 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
+import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import {
   CREATE_SOURCE,
@@ -123,7 +125,8 @@ export function SourcesPanel({ treeId }: { treeId: string }) {
           }}
           className={`${smallButton} mb-3 w-full`}
         >
-          ＋ {t('addSource')}
+          <FontAwesomeIcon icon={icons.plus} className="mr-1" />
+          {t('addSource')}
         </button>
       )}
       {adding && (
@@ -170,7 +173,8 @@ export function SourcesPanel({ treeId }: { treeId: string }) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="font-medium text-stone-800 dark:text-stone-100">
-                    📚 {source.title}
+                    <FontAwesomeIcon icon={icons.book} className="mr-1.5" />
+                    {source.title}
                   </p>
                   {source.author && (
                     <p className="text-xs text-stone-500 dark:text-stone-400">
@@ -184,7 +188,7 @@ export function SourcesPanel({ treeId }: { treeId: string }) {
                     onClick={() => setEditingId(source.id)}
                     className={ghostButton}
                   >
-                    ✎
+                    <FontAwesomeIcon icon={icons.pen} />
                   </button>
                   <button
                     type="button"
@@ -195,7 +199,7 @@ export function SourcesPanel({ treeId }: { treeId: string }) {
                     }}
                     className={ghostButton}
                   >
-                    🗑
+                    <FontAwesomeIcon icon={icons.trash} />
                   </button>
                 </div>
               </div>

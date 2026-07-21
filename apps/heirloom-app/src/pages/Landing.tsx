@@ -1,14 +1,25 @@
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ChatPanel';
 import { useAuth } from '../lib/auth';
+import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 
-function Feature({ icon, title, text }: { icon: string; title: string; text: string }) {
+function Feature({
+  icon,
+  title,
+  text,
+}: {
+  icon: IconDefinition;
+  title: string;
+  text: string;
+}) {
   return (
     <div className="rounded-2xl bg-white/70 p-4 ring-1 ring-amber-900/10 dark:bg-stone-900/70 dark:ring-stone-800">
       <div className="flex items-center gap-2.5">
-        <span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-base dark:bg-stone-800">
-          {icon}
+        <span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-stone-800 dark:text-amber-400">
+          <FontAwesomeIcon icon={icon} />
         </span>
         <h3 className="text-sm font-semibold text-stone-800 dark:text-stone-100">
           {title}
@@ -55,14 +66,18 @@ export function Landing() {
       </div>
 
       <div className="mt-10 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
-        <Feature icon="🌳" title={t('featureTree')} text={t('featureTreeText')} />
         <Feature
-          icon="✦"
+          icon={icons.tree}
+          title={t('featureTree')}
+          text={t('featureTreeText')}
+        />
+        <Feature
+          icon={icons.assistant}
           title={t('featureAssistant')}
           text={t('featureAssistantText')}
         />
         <Feature
-          icon="🏠"
+          icon={icons.house}
           title={t('featureSelfHosted')}
           text={t('featureSelfHostedText')}
         />

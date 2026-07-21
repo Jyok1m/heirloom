@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@apollo/client/react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MembersPanel } from '../components/MembersPanel';
@@ -14,6 +15,7 @@ import { UnionPanel } from '../components/tree-edit/UnionPanel';
 import { TreeCanvas } from '../components/tree2d/TreeCanvas';
 import type { TreePerson, TreeUnion } from '../components/tree2d/layout';
 import type { Sex } from '../generated/graphql';
+import { icons } from '../lib/icons';
 import { enumLabel, SEXES } from '../lib/genealogy';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
@@ -151,7 +153,8 @@ export function TreeView() {
     <main className="relative flex-1">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3">
         <Link to="/trees" className={headerButton}>
-          ← {t('backToTrees')}
+          <FontAwesomeIcon icon={icons.arrowLeft} className="mr-1.5" />
+          {t('backToTrees')}
         </Link>
         <h1 className="font-display text-lg font-semibold text-stone-800 dark:text-stone-100">
           {tree?.name ?? '…'}
@@ -170,7 +173,8 @@ export function TreeView() {
             }}
             className={headerButton}
           >
-            📚 {t('sourcesTitle')}
+            <FontAwesomeIcon icon={icons.book} className="mr-1.5" />
+            {t('sourcesTitle')}
           </button>
           {isAdmin && (
             <button
@@ -181,7 +185,8 @@ export function TreeView() {
               }}
               className={headerButton}
             >
-              👥 {t('membersTitle')}
+              <FontAwesomeIcon icon={icons.users} className="mr-1.5" />
+              {t('membersTitle')}
             </button>
           )}
           <button
@@ -192,7 +197,8 @@ export function TreeView() {
             }}
             className="pointer-events-auto rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-md transition hover:from-amber-500 hover:to-amber-600"
           >
-            + {t('addPerson')}
+            <FontAwesomeIcon icon={icons.plus} className="mr-1.5" />
+            {t('addPerson')}
           </button>
         </div>
       </div>
@@ -221,7 +227,8 @@ export function TreeView() {
           tree && (
             <div className="grid h-full place-items-center px-6">
               <p className="max-w-sm text-center text-sm leading-relaxed text-stone-500 dark:text-stone-400">
-                🌱 {t('emptyTree')}
+                <FontAwesomeIcon icon={icons.seedling} className="mr-1.5" />
+                {t('emptyTree')}
               </p>
             </div>
           )
@@ -240,7 +247,7 @@ export function TreeView() {
               aria-label={t('close')}
               className="rounded-lg px-2 py-1 text-sm text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
             >
-              ✕
+              <FontAwesomeIcon icon={icons.xmark} />
             </button>
           </div>
 

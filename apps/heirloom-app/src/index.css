@@ -10,3 +10,16 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* Tailwind v4 no longer sets cursor:pointer on buttons — restore it globally */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}

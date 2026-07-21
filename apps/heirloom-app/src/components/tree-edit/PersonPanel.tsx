@@ -1,7 +1,9 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
 import type { Pedigree, Sex } from '../../generated/graphql';
 import { enumLabel, PEDIGREES, SEXES } from '../../lib/genealogy';
+import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { EventList } from './EventList';
 import { MediaList } from './MediaList';
@@ -181,7 +183,7 @@ export function PersonPanel({
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-stone-700 dark:text-stone-200">
-                  💍{' '}
+                  <FontAwesomeIcon icon={icons.ring} className="mr-1.5" />{' '}
                   {partners.length
                     ? partners.map((p) => personName(p)).join(', ')
                     : '—'}
@@ -191,7 +193,8 @@ export function PersonPanel({
                   onClick={() => onOpenUnion(union.id)}
                   className={ghostButton}
                 >
-                  ✎ {t('editUnion')}
+                  <FontAwesomeIcon icon={icons.pen} className="mr-1" />
+                  {t('editUnion')}
                 </button>
               </div>
               {union.children.length > 0 && (
@@ -202,7 +205,8 @@ export function PersonPanel({
                       className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400"
                     >
                       <span className="flex-1 truncate">
-                        👶 {personName(child.person)}
+                        <FontAwesomeIcon icon={icons.child} className="mr-1" />
+                        {personName(child.person)}
                       </span>
                       <select
                         aria-label={t('pedigreeL')}
@@ -237,7 +241,7 @@ export function PersonPanel({
                           }
                           className={ghostButton}
                         >
-                          ✕
+                          <FontAwesomeIcon icon={icons.xmark} />
                         </button>
                       )}
                     </li>
@@ -257,7 +261,7 @@ export function PersonPanel({
                   }).catch(fail);
                 }}
               >
-                <option value="">＋ {t('addChild')}</option>
+                <option value="">{t('addChild')}</option>
                 {partnerCandidates
                   .filter((p) => !union.children.some((c) => c.personId === p.id))
                   .map((p) => (
@@ -290,7 +294,7 @@ export function PersonPanel({
               .catch(fail);
           }}
         >
-          <option value="">💍 {t('addPartner')}</option>
+          <option value="">{t('addPartner')}</option>
           {partnerCandidates
             .filter((p) => !otherIds.has(p.id))
             .map((p) => (

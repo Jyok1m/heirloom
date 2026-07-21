@@ -1,5 +1,7 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 
@@ -14,7 +16,7 @@ export function Header() {
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5">
           <span className="grid size-8 place-items-center rounded-xl bg-linear-to-br from-amber-500 to-amber-700 text-sm text-white shadow-sm">
-            🌳
+            <FontAwesomeIcon icon={icons.tree} />
           </span>
           <span className="font-display text-xl font-semibold tracking-tight text-stone-800 dark:text-stone-100">
             Heirloom
@@ -36,7 +38,7 @@ export function Header() {
             className="rounded-lg px-2.5 py-1.5 text-sm text-stone-500 transition hover:bg-amber-100/60 dark:text-stone-300 dark:hover:bg-stone-800"
             aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            <FontAwesomeIcon icon={theme === 'dark' ? icons.sun : icons.moon} />
           </button>
 
           {user ? (

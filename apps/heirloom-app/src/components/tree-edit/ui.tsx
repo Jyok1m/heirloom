@@ -1,4 +1,6 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { ReactNode } from 'react';
+import { icons } from '../../lib/icons';
 
 export const fieldClass =
   'w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 dark:placeholder:text-stone-600';
@@ -48,7 +50,7 @@ export function Chip({
           className="text-stone-400 transition hover:text-red-600"
           aria-label="remove"
         >
-          ✕
+          <FontAwesomeIcon icon={icons.xmark} />
         </button>
       )}
     </span>

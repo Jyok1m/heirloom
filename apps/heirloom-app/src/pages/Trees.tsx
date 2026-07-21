@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link } from 'react-router-dom';
 import { inputClass, primaryButtonClass } from '../components/forms';
 import { graphql } from '../generated';
 import { useAuth } from '../lib/auth';
+import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 
 const TREES_QUERY = graphql(`
@@ -169,8 +171,8 @@ export function Trees() {
 
       {data && data.trees.length === 0 && (
         <div className="mt-14 flex flex-col items-center gap-3 text-center">
-          <span className="grid size-14 place-items-center rounded-2xl bg-amber-100 text-2xl dark:bg-stone-800">
-            🌱
+          <span className="grid size-14 place-items-center rounded-2xl bg-amber-100 text-2xl text-amber-700 dark:bg-stone-800 dark:text-amber-400">
+            <FontAwesomeIcon icon={icons.seedling} />
           </span>
           <p className="max-w-sm text-sm leading-relaxed text-stone-500 dark:text-stone-400">
             {t('treesEmpty')}
@@ -187,8 +189,8 @@ export function Trees() {
               className="group flex flex-col rounded-3xl bg-white p-5 shadow-sm ring-1 ring-amber-900/10 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/10 dark:bg-stone-900 dark:ring-stone-800"
             >
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 text-lg dark:from-stone-800 dark:to-stone-800">
-                  🌳
+                <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 text-lg text-amber-700 dark:from-stone-800 dark:to-stone-800 dark:text-amber-400">
+                  <FontAwesomeIcon icon={icons.tree} />
                 </span>
                 <h2 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-stone-900 dark:text-stone-100">
                   {tree.name}
@@ -213,7 +215,7 @@ export function Trees() {
                       }}
                       className="rounded-lg px-1.5 py-1 text-sm text-stone-400 transition hover:bg-amber-100 hover:text-stone-700 dark:hover:bg-stone-800"
                     >
-                      ✎
+                      <FontAwesomeIcon icon={icons.pen} />
                     </button>
                     <button
                       type="button"
@@ -227,7 +229,7 @@ export function Trees() {
                       }}
                       className="rounded-lg px-1.5 py-1 text-sm text-stone-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                     >
-                      🗑
+                      <FontAwesomeIcon icon={icons.trash} />
                     </button>
                   </span>
                 )}
@@ -239,7 +241,8 @@ export function Trees() {
               )}
               <div className="mt-auto flex items-center justify-between pt-4 text-xs text-stone-400 dark:text-stone-500">
                 <span>
-                  👤 {tree.persons.length}
+                  <FontAwesomeIcon icon={icons.user} className="mr-1" />
+                  {tree.persons.length}
                 </span>
                 <span>
                   {t('created')}{' '}

@@ -1,4 +1,6 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { icons } from '../../lib/icons';
 import {
   CARD_H,
   CARD_W,
@@ -263,11 +265,15 @@ export function TreeCanvas({
                   {fullName(person)}
                 </span>
                 <span className="block text-[11px] text-stone-400 dark:text-stone-500">
-                  {person.sex === 'MALE'
-                    ? '♂'
-                    : person.sex === 'FEMALE'
-                      ? '♀'
-                      : '·'}
+                  <FontAwesomeIcon
+                    icon={
+                      person.sex === 'MALE'
+                        ? icons.male
+                        : person.sex === 'FEMALE'
+                          ? icons.female
+                          : icons.genderless
+                    }
+                  />
                 </span>
               </span>
             </button>

@@ -1,6 +1,7 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation } from '@apollo/client/react';
 import { useRef, useState } from 'react';
-import { MEDIA_ICON } from '../../lib/genealogy';
+import { icons, MEDIA_ICON } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { LINK_MEDIA, UNLINK_MEDIA } from './operations';
 import { ghostButton, Section } from './ui';
@@ -71,7 +72,14 @@ export function MediaList({
           onClick={() => inputRef.current?.click()}
           className={ghostButton}
         >
-          {uploading ? t('uploading') : `＋ ${t('uploadMedia')}`}
+          {uploading ? (
+            t('uploading')
+          ) : (
+            <>
+              <FontAwesomeIcon icon={icons.plus} className="mr-1" />
+              {t('uploadMedia')}
+            </>
+          )}
         </button>
       }
     >
@@ -106,8 +114,8 @@ export function MediaList({
                     className="size-10 shrink-0 rounded-lg object-cover"
                   />
                 ) : (
-                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-amber-100 text-lg dark:bg-stone-700">
-                    {MEDIA_ICON[item.type] ?? '📎'}
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-stone-700 dark:text-amber-300">
+                    <FontAwesomeIcon icon={MEDIA_ICON[item.type] ?? icons.book} />
                   </span>
                 )}
                 <a

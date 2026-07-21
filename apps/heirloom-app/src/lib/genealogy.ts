@@ -102,29 +102,3 @@ export function enumLabel(
   return GROUPS[group][value]?.[lang] ?? value;
 }
 
-export const EVENT_ICON: Record<string, string> = {
-  BIRTH: '👶',
-  BAPTISM: '⛪',
-  DEATH: '🕯️',
-  BURIAL: '⚰️',
-  CREMATION: '🔥',
-  OCCUPATION: '💼',
-  RESIDENCE: '🏠',
-  EDUCATION: '🎓',
-  EMIGRATION: '✈️',
-  IMMIGRATION: '🛬',
-  NATURALIZATION: '📜',
-  MARRIAGE: '💍',
-  MARRIAGE_BANNS: '📢',
-  ENGAGEMENT: '💐',
-  DIVORCE: '💔',
-  ANNULMENT: '🚫',
-  OTHER: '•',
-};
-
-export const MEDIA_ICON: Record<string, string> = {
-  IMAGE: '🖼️',
-  DOCUMENT: '📄',
-  AUDIO: '🎵',
-  VIDEO: '🎬',
-};

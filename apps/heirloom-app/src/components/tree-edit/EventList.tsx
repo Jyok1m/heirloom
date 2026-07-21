@@ -1,11 +1,12 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation } from '@apollo/client/react';
 import { useState } from 'react';
 import {
-  EVENT_ICON,
   enumLabel,
   PERSON_EVENT_TYPES,
   UNION_EVENT_TYPES,
 } from '../../lib/genealogy';
+import { EVENT_ICON, icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import {
   CREATE_CITATION,
@@ -173,7 +174,8 @@ function Citations({
               : undefined
           }
         >
-          📚 {citation.source.title}
+          <FontAwesomeIcon icon={icons.book} className="mr-1" />
+          {citation.source.title}
           {citation.page ? ` · ${citation.page}` : ''}
         </Chip>
       ))}
@@ -246,7 +248,8 @@ export function EventList({
             }}
             className={ghostButton}
           >
-            ＋ {t('addEvent')}
+            <FontAwesomeIcon icon={icons.plus} className="mr-1" />
+            {t('addEvent')}
           </button>
         )
       }
@@ -314,7 +317,10 @@ export function EventList({
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="font-medium text-stone-800 dark:text-stone-100">
-                    {EVENT_ICON[event.type] ?? '•'}{' '}
+                    <FontAwesomeIcon
+                      icon={EVENT_ICON[event.type] ?? icons.star}
+                      className="mr-1.5"
+                    />{' '}
                     {event.type === 'OTHER' && event.description
                       ? event.description
                       : enumLabel('eventType', event.type, lang)}
@@ -336,7 +342,7 @@ export function EventList({
                     }}
                     className={ghostButton}
                   >
-                    ✎
+                    <FontAwesomeIcon icon={icons.pen} />
                   </button>
                   {isAdmin && (
                     <button
@@ -350,7 +356,7 @@ export function EventList({
                       }}
                       className={ghostButton}
                     >
-                      🗑
+                      <FontAwesomeIcon icon={icons.trash} />
                     </button>
                   )}
                 </div>

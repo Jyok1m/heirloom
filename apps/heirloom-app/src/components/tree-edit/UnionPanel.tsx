@@ -1,7 +1,9 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
 import type { Pedigree, UnionType } from '../../generated/graphql';
 import { enumLabel, PEDIGREES, UNION_TYPES } from '../../lib/genealogy';
+import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { EventList } from './EventList';
 import {
@@ -148,7 +150,7 @@ export function UnionPanel({
               }).catch(fail);
             }}
           >
-            <option value="">💍 {t('addPartner')}</option>
+            <option value="">{t('addPartner')}</option>
             {others
               .filter((p) => !partnerIds.has(p.id) && !childIds.has(p.id))
               .map((p) => (
@@ -172,7 +174,8 @@ export function UnionPanel({
                 onClick={() => onSelectPerson(child.personId)}
                 className="min-w-0 flex-1 truncate text-left text-stone-700 hover:underline dark:text-stone-200"
               >
-                👶 {personName(child.person)}
+                <FontAwesomeIcon icon={icons.child} className="mr-1.5" />
+                {personName(child.person)}
               </button>
               <select
                 aria-label={t('pedigreeL')}
@@ -204,7 +207,7 @@ export function UnionPanel({
                   }
                   className={ghostButton}
                 >
-                  ✕
+                  <FontAwesomeIcon icon={icons.xmark} />
                 </button>
               )}
             </div>
@@ -223,7 +226,7 @@ export function UnionPanel({
             }).catch(fail);
           }}
         >
-          <option value="">＋ {t('addChild')}</option>
+          <option value="">{t('addChild')}</option>
           {others
             .filter((p) => !partnerIds.has(p.id) && !childIds.has(p.id))
             .map((p) => (
