@@ -24,6 +24,14 @@ export class AssistantController {
     private readonly store: ConversationStore,
   ) {}
 
+  // Most recent conversation of the user, to resume on page load.
+  // Declared before :id so "latest" is not parsed as a UUID.
+  @Get('conversations/latest')
+  async latestConversation(@CurrentUser() user: UserModel) {
+    const latest = await this.store.latest(user.id);
+    return latest ?? { id: null, turns: [] };
+  }
+
   // History of one of the user's conversations (empty if not theirs)
   @Get('conversations/:id')
   async conversation(

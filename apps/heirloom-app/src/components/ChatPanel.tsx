@@ -10,8 +10,6 @@ interface Message {
   error?: boolean;
 }
 
-const CONVERSATION_KEY = 'heirloom-conversation';
-
 export function ChatPanel({ treeId }: { treeId?: string }) {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -21,22 +19,21 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
   const conversationId = useRef<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Logged-in users get their conversation history back
+  // Logged-in users resume their most recent conversation (server-side)
   useEffect(() => {
     if (!user) return;
-    const saved = localStorage.getItem(CONVERSATION_KEY);
-    if (!saved) return;
-    conversationId.current = saved;
-    fetch(`/api/assistant/conversations/${saved}`, { credentials: 'include' })
+    fetch('/api/assistant/conversations/latest', { credentials: 'include' })
       .then(async (response) =>
         response.ok
           ? ((await response.json()) as {
+              id: string | null;
               turns: { role: 'user' | 'assistant'; content: string }[];
             })
           : null,
       )
       .then((data) => {
-        if (data?.turns.length) {
+        if (data?.id && data.turns.length) {
+          conversationId.current = data.id;
           setMessages(
             data.turns.map((turn) => ({
               role: turn.role,
@@ -79,9 +76,6 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
             })),
           onDone: (result) => {
             conversationId.current = result.conversationId;
-            if (user) {
-              localStorage.setItem(CONVERSATION_KEY, result.conversationId);
-            }
             patchLast((last) => ({
               ...last,
               content: result.reply || last.content,

@@ -20,6 +20,21 @@ export class ConversationStore {
     return conversation.turns as unknown as ChatTurn[];
   }
 
+  // Most recent conversation of a user, to resume where they left off
+  async latest(
+    userId: string,
+  ): Promise<{ id: string; turns: ChatTurn[] } | null> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!conversation) return null;
+    return {
+      id: conversation.id,
+      turns: conversation.turns as unknown as ChatTurn[],
+    };
+  }
+
   async set(id: string, userId: string | null, turns: ChatTurn[]) {
     const payload = turns.slice(-MAX_TURNS) as unknown as Prisma.InputJsonValue;
     await this.prisma.conversation.upsert({

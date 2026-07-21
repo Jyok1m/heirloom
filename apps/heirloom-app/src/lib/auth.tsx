@@ -77,7 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await post('/api/auth/logout');
-    localStorage.removeItem('heirloom-conversation');
     setUser(null);
   }, []);
 
