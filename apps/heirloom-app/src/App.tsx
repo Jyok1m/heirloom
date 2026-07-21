@@ -1,3 +1,4 @@
+import { StyleProvider } from '@ant-design/cssinjs';
 import { ApolloProvider } from '@apollo/client/react';
 import { App as AntdApp, ConfigProvider, theme as antdTheme } from 'antd';
 import type { ReactNode } from 'react';
@@ -68,14 +69,18 @@ function Shell() {
 function Themed({ children }: { children: ReactNode }) {
   const { dark } = useTheme();
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-        token: { colorPrimary: '#d97706', borderRadius: 12 },
-      }}
-    >
-      <AntdApp>{children}</AntdApp>
-    </ConfigProvider>
+    <StyleProvider layer>
+      <ConfigProvider
+        theme={{
+          algorithm: dark
+            ? antdTheme.darkAlgorithm
+            : antdTheme.defaultAlgorithm,
+          token: { colorPrimary: '#d97706', borderRadius: 12 },
+        }}
+      >
+        <AntdApp>{children}</AntdApp>
+      </ConfigProvider>
+    </StyleProvider>
   );
 }
 

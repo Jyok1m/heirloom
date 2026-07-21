@@ -1,3 +1,7 @@
+/* antd (injected via StyleProvider layer) goes into the lowest-priority
+   layer so Tailwind utilities always win over antd's global reset (e.g. its
+   `a { color }` was overriding text-white on links). */
+@layer antd;
 @import 'tailwindcss';
 
 /* Dark mode driven by the .dark class on <html> */
