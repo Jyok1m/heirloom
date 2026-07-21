@@ -34,12 +34,16 @@ export function TreeCanvas({
   persons,
   unions,
   selectedId,
+  selectedUnionId,
   onSelect,
+  onSelectUnion,
 }: {
   persons: TreePerson[];
   unions: TreeUnion[];
   selectedId: string | null;
+  selectedUnionId: string | null;
   onSelect: (id: string | null) => void;
+  onSelectUnion: (id: string) => void;
 }) {
   const layout = useMemo(
     () => layoutTree(persons, unions),
@@ -197,17 +201,39 @@ export function TreeCanvas({
             />
           ))}
           {layout.unions.map(({ union, x, y }) =>
-            union.partnerIds.length === 2 ? (
+            union.partnerIds.length >= 1 ? (
               <circle
                 key={union.id}
                 cx={x}
                 cy={y}
-                r={5}
-                className="fill-amber-500"
+                r={union.id === selectedUnionId ? 8 : 5}
+                className={
+                  union.id === selectedUnionId
+                    ? 'fill-amber-500 stroke-amber-300'
+                    : 'fill-amber-500'
+                }
+                strokeWidth={3}
               />
             ) : null,
           )}
         </svg>
+
+        {/* Clickable union hit targets */}
+        {layout.unions.map(({ union, x, y }) =>
+          union.partnerIds.length >= 1 ? (
+            <button
+              type="button"
+              key={union.id}
+              aria-label="union"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectUnion(union.id);
+              }}
+              style={{ left: x - 12, top: y - 12, width: 24, height: 24 }}
+              className="absolute rounded-full"
+            />
+          ) : null,
+        )}
 
         {layout.boxes.map(({ person, x, y }) => {
           const selected = person.id === selectedId;

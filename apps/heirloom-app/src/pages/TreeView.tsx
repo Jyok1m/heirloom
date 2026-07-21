@@ -1,193 +1,119 @@
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { inputClass, primaryButtonClass } from '../components/forms';
 import { MembersPanel } from '../components/MembersPanel';
+import { PersonPanel } from '../components/tree-edit/PersonPanel';
+import { SourcesPanel } from '../components/tree-edit/SourcesPanel';
+import {
+  CREATE_PERSON,
+  TREE_CANVAS,
+  TREE_SOURCES,
+} from '../components/tree-edit/operations';
+import { fieldClass, smallButton } from '../components/tree-edit/ui';
+import { UnionPanel } from '../components/tree-edit/UnionPanel';
 import { TreeCanvas } from '../components/tree2d/TreeCanvas';
 import type { TreePerson, TreeUnion } from '../components/tree2d/layout';
-import { graphql } from '../generated';
+import type { Sex } from '../generated/graphql';
+import { enumLabel, SEXES } from '../lib/genealogy';
 import { useAuth } from '../lib/auth';
-import { useI18n, type TranslationKey } from '../lib/i18n';
+import { useI18n } from '../lib/i18n';
 
-const TREE_DETAIL = graphql(`
-  query TreeDetail($id: ID!) {
-    tree(id: $id) {
-      id
-      name
-      persons {
-        id
-        firstName
-        lastName
-        sex
-        notes
-      }
-      unions {
-        id
-        type
-        partners {
-          id
-        }
-        children {
-          person {
-            id
-          }
-        }
-      }
-    }
-  }
-`);
+const headerButton =
+  'pointer-events-auto rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/85 dark:text-stone-300 dark:ring-stone-700';
 
-const CREATE_PERSON = graphql(`
-  mutation CreatePersonM($input: CreatePersonInput!) {
-    createPerson(input: $input) {
-      id
-    }
-  }
-`);
-
-const UPDATE_PERSON = graphql(`
-  mutation UpdatePersonM($id: ID!, $input: UpdatePersonInput!) {
-    updatePerson(id: $id, input: $input) {
-      id
-    }
-  }
-`);
-
-const DELETE_PERSON = graphql(`
-  mutation DeletePersonM($id: ID!) {
-    deletePerson(id: $id) {
-      id
-    }
-  }
-`);
-
-const CREATE_UNION = graphql(`
-  mutation CreateUnionM($input: CreateUnionInput!) {
-    createUnion(input: $input) {
-      id
-    }
-  }
-`);
-
-const ADD_PARTNER = graphql(`
-  mutation AddUnionPartnerM($unionId: ID!, $personId: ID!) {
-    addUnionPartner(unionId: $unionId, personId: $personId) {
-      id
-    }
-  }
-`);
-
-const ADD_CHILD = graphql(`
-  mutation AddUnionChildM($input: UnionChildInput!) {
-    addUnionChild(input: $input) {
-      id
-    }
-  }
-`);
-
-const SEXES = ['MALE', 'FEMALE', 'OTHER', 'UNKNOWN'] as const;
-const REFETCH = ['TreeDetail'];
-
-function PersonForm({
-  initial,
-  busy,
-  submitLabel,
-  onSubmit,
+function AddPersonForm({
+  treeId,
+  onDone,
+  onError,
 }: {
-  initial?: { firstName: string; lastName: string; sex: string; notes: string };
-  busy: boolean;
-  submitLabel: string;
-  onSubmit(values: {
-    firstName?: string;
-    lastName?: string;
-    sex: (typeof SEXES)[number];
-    notes?: string;
-  }): void;
+  treeId: string;
+  onDone(id: string): void;
+  onError(): void;
 }) {
-  const { t } = useI18n();
-  const [firstName, setFirstName] = useState(initial?.firstName ?? '');
-  const [lastName, setLastName] = useState(initial?.lastName ?? '');
-  const [sex, setSex] = useState(initial?.sex ?? 'UNKNOWN');
-  const [notes, setNotes] = useState(initial?.notes ?? '');
+  const { t, lang } = useI18n();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [sex, setSex] = useState('UNKNOWN');
+  const [createPerson, { loading }] = useMutation(CREATE_PERSON, {
+    refetchQueries: ['TreeCanvas'],
+  });
 
   return (
     <form
-      className="flex flex-col gap-2.5"
+      className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit({
-          firstName: firstName || undefined,
-          lastName: lastName || undefined,
-          sex: sex as (typeof SEXES)[number],
-          notes: notes || undefined,
-        });
+        void createPerson({
+          variables: {
+            input: {
+              treeId,
+              firstName: firstName || null,
+              lastName: lastName || null,
+              sex: sex as Sex,
+            },
+          },
+        })
+          .then((result) => {
+            const id = result.data?.createPerson.id;
+            if (id) onDone(id);
+          })
+          .catch(onError);
       }}
     >
       <div className="grid grid-cols-2 gap-2">
         <input
+          autoFocus
           placeholder={t('firstNameL')}
-          aria-label={t('firstNameL')}
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
-          className={inputClass}
+          className={fieldClass}
         />
         <input
           placeholder={t('lastNameL')}
-          aria-label={t('lastNameL')}
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
-          className={inputClass}
+          className={fieldClass}
         />
       </div>
       <select
         aria-label={t('sexL')}
         value={sex}
         onChange={(e) => setSex(e.target.value)}
-        className={inputClass}
+        className={fieldClass}
       >
         {SEXES.map((value) => (
           <option key={value} value={value}>
-            {t(`sex${value}` as TranslationKey)}
+            {enumLabel('sex', value, lang)}
           </option>
         ))}
       </select>
-      <textarea
-        placeholder={t('notesL')}
-        aria-label={t('notesL')}
-        value={notes}
-        rows={2}
-        onChange={(e) => setNotes(e.target.value)}
-        className={inputClass}
-      />
-      <button type="submit" disabled={busy} className={primaryButtonClass}>
-        {busy ? t('submitting') : submitLabel}
+      <button type="submit" disabled={loading} className={smallButton}>
+        {loading ? t('submitting') : t('createAction')}
       </button>
     </form>
   );
 }
 
+type Panel =
+  | { kind: 'person'; id: string }
+  | { kind: 'union'; id: string }
+  | { kind: 'add' }
+  | { kind: 'members' }
+  | { kind: 'sources' }
+  | null;
+
 export function TreeView() {
   const { id = '' } = useParams();
   const { t } = useI18n();
   const { user } = useAuth();
-  const { data, loading } = useQuery(TREE_DETAIL, { variables: { id } });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [showMembers, setShowMembers] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const isAdmin = user?.role === 'ADMIN';
 
-  const [createPerson, createPersonState] = useMutation(CREATE_PERSON, {
-    refetchQueries: REFETCH,
+  const { data, loading } = useQuery(TREE_CANVAS, { variables: { id } });
+  const { data: sourcesData } = useQuery(TREE_SOURCES, {
+    variables: { id },
   });
-  const [updatePerson, updatePersonState] = useMutation(UPDATE_PERSON, {
-    refetchQueries: REFETCH,
-  });
-  const [deletePerson] = useMutation(DELETE_PERSON, {
-    refetchQueries: REFETCH,
-  });
-  const [createUnion] = useMutation(CREATE_UNION, { refetchQueries: REFETCH });
-  const [addPartner] = useMutation(ADD_PARTNER, { refetchQueries: REFETCH });
-  const [addChild] = useMutation(ADD_CHILD, { refetchQueries: REFETCH });
+  const [panel, setPanel] = useState<Panel>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const tree = data?.tree;
   const treeUnions = useMemo<TreeUnion[]>(
@@ -199,27 +125,32 @@ export function TreeView() {
       })) ?? [],
     [tree],
   );
+  const others = tree?.persons ?? [];
+  const sources = sourcesData?.tree.sources ?? [];
+  const fail = () => setError(t('forbidden'));
 
-  const selected = tree?.persons.find((p) => p.id === selectedId) ?? null;
-  const selectedUnions =
-    tree?.unions.filter((u) => u.partners.some((p) => p.id === selectedId)) ??
-    [];
-  const others = tree?.persons.filter((p) => p.id !== selectedId) ?? [];
-  const nameOf = (personId: string) => {
-    const person = tree?.persons.find((p) => p.id === personId);
-    return (
-      [person?.firstName, person?.lastName].filter(Boolean).join(' ') || '(?)'
-    );
-  };
-  const failed = () => setError(t('forbidden'));
+  const title =
+    panel?.kind === 'members'
+      ? t('membersTitle')
+      : panel?.kind === 'sources'
+        ? t('sourcesTitle')
+        : panel?.kind === 'add'
+          ? t('addPerson')
+          : panel?.kind === 'union'
+            ? t('unionLabel')
+            : panel?.kind === 'person'
+              ? (() => {
+                  const p = others.find((x) => x.id === panel.id);
+                  return (
+                    [p?.firstName, p?.lastName].filter(Boolean).join(' ') || '—'
+                  );
+                })()
+              : '';
 
   return (
     <main className="relative flex-1">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3">
-        <Link
-          to="/trees"
-          className="pointer-events-auto rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/85 dark:text-stone-300 dark:ring-stone-700"
-        >
+        <Link to="/trees" className={headerButton}>
           ← {t('backToTrees')}
         </Link>
         <h1 className="font-display text-lg font-semibold text-stone-800 dark:text-stone-100">
@@ -231,16 +162,24 @@ export function TreeView() {
               {error}
             </span>
           )}
-          {user?.role === 'ADMIN' && (
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setPanel({ kind: 'sources' });
+            }}
+            className={headerButton}
+          >
+            📚 {t('sourcesTitle')}
+          </button>
+          {isAdmin && (
             <button
               type="button"
               onClick={() => {
                 setError(null);
-                setShowMembers((v) => !v);
-                setAdding(false);
-                setSelectedId(null);
+                setPanel({ kind: 'members' });
               }}
-              className="rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/85 dark:text-stone-300 dark:ring-stone-700"
+              className={headerButton}
             >
               👥 {t('membersTitle')}
             </button>
@@ -249,11 +188,9 @@ export function TreeView() {
             type="button"
             onClick={() => {
               setError(null);
-              setAdding((v) => !v);
-              setSelectedId(null);
-              setShowMembers(false);
+              setPanel({ kind: 'add' });
             }}
-            className="rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-md transition hover:from-amber-500 hover:to-amber-600"
+            className="pointer-events-auto rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-md transition hover:from-amber-500 hover:to-amber-600"
           >
             + {t('addPerson')}
           </button>
@@ -269,11 +206,15 @@ export function TreeView() {
           <TreeCanvas
             persons={tree.persons as TreePerson[]}
             unions={treeUnions}
-            selectedId={selectedId}
+            selectedId={panel?.kind === 'person' ? panel.id : null}
+            selectedUnionId={panel?.kind === 'union' ? panel.id : null}
             onSelect={(value) => {
-              setSelectedId(value);
-              setAdding(false);
               setError(null);
+              setPanel(value ? { kind: 'person', id: value } : null);
+            }}
+            onSelectUnion={(unionId) => {
+              setError(null);
+              setPanel({ kind: 'union', id: unionId });
             }}
           />
         ) : (
@@ -287,165 +228,57 @@ export function TreeView() {
         )}
       </div>
 
-      {(adding || selected || showMembers) && (
-        <aside className="absolute bottom-4 right-4 top-16 z-10 w-[320px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
-          {showMembers ? (
-            <>
-              <div className="mb-4 flex items-start justify-between gap-2">
-                <h2 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
-                  {t('membersTitle')}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowMembers(false)}
-                  aria-label={t('close')}
-                  className="rounded-lg px-2 py-1 text-sm text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
-                >
-                  ✕
-                </button>
-              </div>
-              <MembersPanel treeId={id} />
-            </>
-          ) : adding ? (
-            <>
-              <h2 className="mb-4 font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
-                {t('addPerson')}
-              </h2>
-              <PersonForm
-                busy={createPersonState.loading}
-                submitLabel={t('createAction')}
-                onSubmit={(values) => {
-                  void createPerson({
-                    variables: { input: { treeId: id, ...values } },
-                  })
-                    .then(() => setAdding(false))
-                    .catch(failed);
-                }}
-              />
-            </>
-          ) : selected ? (
-            <>
-              <div className="mb-4 flex items-start justify-between gap-2">
-                <h2 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
-                  {[selected.firstName, selected.lastName]
-                    .filter(Boolean)
-                    .join(' ') || '(?)'}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(null)}
-                  aria-label={t('close')}
-                  className="rounded-lg px-2 py-1 text-sm text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
-                >
-                  ✕
-                </button>
-              </div>
+      {panel && (
+        <aside className="absolute bottom-4 right-4 top-16 z-10 w-[340px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <h2 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setPanel(null)}
+              aria-label={t('close')}
+              className="rounded-lg px-2 py-1 text-sm text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
+            >
+              ✕
+            </button>
+          </div>
 
-              <PersonForm
-                key={selected.id}
-                initial={{
-                  firstName: selected.firstName ?? '',
-                  lastName: selected.lastName ?? '',
-                  sex: selected.sex,
-                  notes: selected.notes ?? '',
-                }}
-                busy={updatePersonState.loading}
-                submitLabel={t('save')}
-                onSubmit={(values) => {
-                  void updatePerson({
-                    variables: { id: selected.id, input: values },
-                  }).catch(failed);
-                }}
-              />
-
-              <div className="mt-5 border-t border-stone-200 pt-4 dark:border-stone-700">
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
-                  {t('unionsLabel')}
-                </h3>
-                {selectedUnions.map((union) => (
-                  <div key={union.id} className="mb-3 rounded-xl bg-amber-50 p-3 text-sm dark:bg-stone-800">
-                    <p className="text-stone-700 dark:text-stone-200">
-                      💍{' '}
-                      {union.partners
-                        .filter((p) => p.id !== selected.id)
-                        .map((p) => nameOf(p.id))
-                        .join(', ') || '—'}
-                    </p>
-                    <select
-                      aria-label={t('addChild')}
-                      className={`${inputClass} mt-2`}
-                      value=""
-                      onChange={(event) => {
-                        if (!event.target.value) return;
-                        void addChild({
-                          variables: {
-                            input: {
-                              unionId: union.id,
-                              personId: event.target.value,
-                            },
-                          },
-                        }).catch(failed);
-                      }}
-                    >
-                      <option value="">＋ {t('addChild')}</option>
-                      {others.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {nameOf(p.id)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-                <select
-                  aria-label={t('addPartner')}
-                  className={inputClass}
-                  value=""
-                  onChange={(event) => {
-                    if (!event.target.value) return;
-                    const partnerId = event.target.value;
-                    void createUnion({
-                      variables: { input: { treeId: id, type: 'MARRIAGE' } },
-                    })
-                      .then((result) => {
-                        const unionId = result.data?.createUnion.id;
-                        if (!unionId) throw new Error();
-                        return addPartner({
-                          variables: { unionId, personId: selected.id },
-                        }).then(() =>
-                          addPartner({
-                            variables: { unionId, personId: partnerId },
-                          }),
-                        );
-                      })
-                      .catch(failed);
-                  }}
-                >
-                  <option value="">💍 {t('addPartner')}</option>
-                  {others.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {nameOf(p.id)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {user?.role === 'ADMIN' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm(t('confirmDelete'))) {
-                      void deletePerson({ variables: { id: selected.id } })
-                        .then(() => setSelectedId(null))
-                        .catch(failed);
-                    }
-                  }}
-                  className="mt-5 w-full rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
-                >
-                  {t('deleteAction')}
-                </button>
-              )}
-            </>
-          ) : null}
+          {panel.kind === 'members' && <MembersPanel treeId={id} />}
+          {panel.kind === 'sources' && <SourcesPanel treeId={id} />}
+          {panel.kind === 'add' && (
+            <AddPersonForm
+              treeId={id}
+              onError={fail}
+              onDone={(personId) => setPanel({ kind: 'person', id: personId })}
+            />
+          )}
+          {panel.kind === 'person' && (
+            <PersonPanel
+              key={panel.id}
+              personId={panel.id}
+              treeId={id}
+              others={others}
+              sources={sources}
+              isAdmin={isAdmin ?? false}
+              onError={fail}
+              onOpenUnion={(unionId) => setPanel({ kind: 'union', id: unionId })}
+            />
+          )}
+          {panel.kind === 'union' && (
+            <UnionPanel
+              key={panel.id}
+              unionId={panel.id}
+              others={others}
+              sources={sources}
+              isAdmin={isAdmin ?? false}
+              onError={fail}
+              onSelectPerson={(personId) =>
+                setPanel({ kind: 'person', id: personId })
+              }
+              onDeleted={() => setPanel(null)}
+            />
+          )}
         </aside>
       )}
     </main>
