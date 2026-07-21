@@ -74,14 +74,14 @@ export class AssistantService {
         return new OpenAiCompatProvider(
           this.config.get<string>('AI_BASE_URL') ?? 'https://api.openai.com/v1',
           apiKey,
-          model ?? 'gpt-4.1',
+          model ?? 'gpt-5-mini',
         );
       case 'ollama':
         return new OpenAiCompatProvider(
           this.config.get<string>('AI_BASE_URL') ??
             'http://localhost:11434/v1',
           apiKey,
-          model ?? 'qwen3:8b',
+          model ?? 'qwen3:4b',
         );
       case 'llamacpp':
         return new OpenAiCompatProvider(

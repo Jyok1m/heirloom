@@ -37,9 +37,13 @@ services:
       db:
         condition: service_healthy
 
+  # Opt-in (docker compose --profile llm up -d): on macOS, Docker has no GPU
+  # access — run Ollama natively instead (brew install ollama). This service
+  # targets Linux hosts / production self-hosting.
   ollama:
     image: ollama/ollama
     restart: unless-stopped
+    profiles: ["llm"]
     ports:
       - "127.0.0.1:11434:11434"
     volumes:
