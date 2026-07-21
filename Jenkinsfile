@@ -3,12 +3,11 @@
 //
 // Point the Jenkins job at THIS file: "Pipeline script from SCM" -> Jenkinsfile.
 //
-// Flow: detect which apps changed -> build only those (buildx, multi-arch,
+// Flow: detect which apps changed -> build only those (native amd64 images,
 // SHA + main tags) -> push -> run DB migrations -> deploy over SSH.
 //
-// Agent prerequisites: docker + `docker buildx`. Cross-arch builds also need
-// QEMU/binfmt on the agent (the Setup stage installs it; needs a privileged
-// docker daemon). Jenkins credentials used:
+// Agent prerequisite: docker (talks to the daemon over the TLS env). Images are
+// linux/amd64 only, so no buildx/QEMU is needed. Jenkins credentials used:
 //   - dockerhub-credentials (username/password) : registry push + remote pull
 //   - host-ssh-key          (ssh private key)   : deploy target
 //   - host-ssh-port         (secret text)       : deploy SSH port
@@ -36,8 +35,6 @@ pipeline {
         REGISTRY   = 'jyok1m'
         API_IMAGE  = "${REGISTRY}/heirloom-api"
         APP_IMAGE  = "${REGISTRY}/heirloom-app"
-        PLATFORMS  = 'linux/amd64,linux/arm64'
-        BUILDER    = 'heirloom-builder'
 
         // Deploy target — self-hosted host running docker compose at REMOTE_DIR.
         PROJECT     = 'heirloom'
@@ -46,7 +43,7 @@ pipeline {
 
         // Absolute public URL baked into the frontend (canonical/OG/sitemap).
         // Leave empty to fall back to relative behaviour; set to the prod domain.
-        PUBLIC_URL  = ''
+        PUBLIC_URL  = 'https://heirloom.joachimjasmin.com'
     }
 
     stages {
@@ -98,24 +95,6 @@ pipeline {
             }
         }
 
-        stage('Setup buildx') {
-            when {
-                branch 'main'
-                expression { env.BUILD_API == 'true' || env.BUILD_APP == 'true' }
-            }
-            steps {
-                sh '''
-                    # Register QEMU handlers so we can build for arm64+amd64 from one agent.
-                    docker run --rm --privileged tonistiigi/binfmt --install arm64,amd64 || true
-                    # Idempotent multi-platform builder.
-                    docker buildx inspect "$BUILDER" >/dev/null 2>&1 || \
-                        docker buildx create --name "$BUILDER" --driver docker-container --use
-                    docker buildx use "$BUILDER"
-                    docker buildx inspect --bootstrap
-                '''
-            }
-        }
-
         stage('Build & push API') {
             when {
                 branch 'main'
@@ -131,21 +110,21 @@ pipeline {
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
                         # Runtime image: immutable SHA tag + moving main tag.
-                        docker buildx build \
-                            --platform "$PLATFORMS" \
+                        docker build \
                             -f apps/heirloom-api/Dockerfile \
                             --target runtime \
                             -t "$API_IMAGE:$GIT_SHA" \
-                            -t "$API_IMAGE:main" \
-                            --push .
+                            -t "$API_IMAGE:main" .
 
                         # One-shot migration image (prisma migrate deploy), run before deploy.
-                        docker buildx build \
-                            --platform "$PLATFORMS" \
+                        docker build \
                             -f apps/heirloom-api/Dockerfile \
                             --target migrate \
-                            -t "$API_IMAGE:migrate" \
-                            --push .
+                            -t "$API_IMAGE:migrate" .
+
+                        docker push "$API_IMAGE:$GIT_SHA"
+                        docker push "$API_IMAGE:main"
+                        docker push "$API_IMAGE:migrate"
 
                         docker logout
                     '''
@@ -167,13 +146,14 @@ pipeline {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-                        docker buildx build \
-                            --platform "$PLATFORMS" \
+                        docker build \
                             -f apps/heirloom-app/Dockerfile \
                             --build-arg PUBLIC_URL="$PUBLIC_URL" \
                             -t "$APP_IMAGE:$GIT_SHA" \
-                            -t "$APP_IMAGE:main" \
-                            --push .
+                            -t "$APP_IMAGE:main" .
+
+                        docker push "$APP_IMAGE:$GIT_SHA"
+                        docker push "$APP_IMAGE:main"
 
                         docker logout
                     '''
