@@ -2,6 +2,7 @@ import { Injectable, Scope } from '@nestjs/common';
 import DataLoader from 'dataloader';
 import type {
   ChildInUnionModel as ChildInUnion,
+  EventModel as Event,
   PersonModel as Person,
   UnionModel as Union,
   UnionPartnerModel as UnionPartner,
@@ -87,6 +88,20 @@ export class EntityLoaders {
       this.prisma.childInUnion.findMany({
         where: { unionId: { in: unionIds } },
       }),
+  );
+
+  readonly eventsByPersonId = groupLoader<Event>('personId', (personIds) =>
+    this.prisma.event.findMany({
+      where: { personId: { in: personIds } },
+      orderBy: [{ dateSort: 'asc' }, { createdAt: 'asc' }],
+    }),
+  );
+
+  readonly eventsByUnionId = groupLoader<Event>('unionId', (unionIds) =>
+    this.prisma.event.findMany({
+      where: { unionId: { in: unionIds } },
+      orderBy: [{ dateSort: 'asc' }, { createdAt: 'asc' }],
+    }),
   );
 
   readonly childLinksByPersonId = groupLoader<ChildInUnion>(

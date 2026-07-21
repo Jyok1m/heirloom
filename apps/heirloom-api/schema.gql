@@ -2,6 +2,17 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input CreateEventInput {
+  dateSort: DateTime
+  dateValue: String
+  description: String
+  notes: String
+  personId: ID
+  place: String
+  type: EventType!
+  unionId: ID
+}
+
 input CreatePersonInput {
   firstName: String
   lastName: String
@@ -29,18 +40,57 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type Event {
+  createdAt: DateTime!
+  dateSort: DateTime
+  dateValue: String
+  description: String
+  id: ID!
+  notes: String
+  person: Person
+  personId: ID
+  place: String
+  type: EventType!
+  union: Union
+  unionId: ID
+  updatedAt: DateTime!
+}
+
+enum EventType {
+  ANNULMENT
+  BAPTISM
+  BIRTH
+  BURIAL
+  CREMATION
+  DEATH
+  DIVORCE
+  EDUCATION
+  EMIGRATION
+  ENGAGEMENT
+  IMMIGRATION
+  MARRIAGE
+  MARRIAGE_BANNS
+  NATURALIZATION
+  OCCUPATION
+  OTHER
+  RESIDENCE
+}
+
 type Mutation {
   addUnionChild(input: UnionChildInput!): Union!
   addUnionPartner(personId: ID!, unionId: ID!): Union!
+  createEvent(input: CreateEventInput!): Event!
   createPerson(input: CreatePersonInput!): Person!
   createTree(input: CreateTreeInput!): Tree!
   createUnion(input: CreateUnionInput!): Union!
+  deleteEvent(id: ID!): Event!
   deletePerson(id: ID!): Person!
   deleteTree(id: ID!): Tree!
   deleteUnion(id: ID!): Union!
   removeUnionChild(personId: ID!, unionId: ID!): Union!
   removeUnionPartner(personId: ID!, unionId: ID!): Union!
   setUnionChildPedigree(pedigree: Pedigree!, personId: ID!, unionId: ID!): Union!
+  updateEvent(id: ID!, input: UpdateEventInput!): Event!
   updatePerson(id: ID!, input: UpdatePersonInput!): Person!
   updateTree(id: ID!, input: UpdateTreeInput!): Tree!
   updateUnion(id: ID!, input: UpdateUnionInput!): Union!
@@ -55,6 +105,7 @@ enum Pedigree {
 
 type Person {
   createdAt: DateTime!
+  events: [Event!]!
   firstName: String
   gedcomId: String
   id: ID!
@@ -71,6 +122,7 @@ type Person {
 }
 
 type Query {
+  event(id: ID!): Event!
   person(id: ID!): Person!
   persons(skip: Int! = 0, take: Int! = 50, treeId: ID!): [Person!]!
   tree(id: ID!): Tree!
@@ -99,6 +151,7 @@ type Tree {
 type Union {
   children: [UnionChild!]!
   createdAt: DateTime!
+  events: [Event!]!
   gedcomId: String
   id: ID!
   notes: String
@@ -126,6 +179,15 @@ enum UnionType {
   MARRIAGE
   PARTNERSHIP
   UNKNOWN
+}
+
+input UpdateEventInput {
+  dateSort: DateTime
+  dateValue: String
+  description: String
+  notes: String
+  place: String
+  type: EventType
 }
 
 input UpdatePersonInput {

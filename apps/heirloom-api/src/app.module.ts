@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { DataloadersModule } from './common/dataloaders/dataloaders.module';
+import { EventsModule } from './events/events.module';
 import { PersonsModule } from './persons/persons.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RelationshipsModule } from './relationships/relationships.module';
@@ -30,6 +31,7 @@ import './graphql/enums';
     TreesModule,
     PersonsModule,
     RelationshipsModule,
+    EventsModule,
   ],
 })
 export class AppModule {}
