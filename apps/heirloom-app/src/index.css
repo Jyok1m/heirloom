@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+/* Dark mode driven by the .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: Georgia, 'Times New Roman', serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
