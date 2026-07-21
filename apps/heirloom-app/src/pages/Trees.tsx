@@ -1,4 +1,6 @@
-import { useQuery } from '@apollo/client/react';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { useState } from 'react';
+import { inputClass, primaryButtonClass } from '../components/forms';
 import { graphql } from '../generated';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
@@ -17,10 +19,79 @@ const TREES_QUERY = graphql(`
   }
 `);
 
+const CREATE_TREE = graphql(`
+  mutation CreateTree($input: CreateTreeInput!) {
+    createTree(input: $input) {
+      id
+      name
+    }
+  }
+`);
+
+function NewTreeForm({ onDone }: { onDone: () => void }) {
+  const { t } = useI18n();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [createTree, { loading }] = useMutation(CREATE_TREE, {
+    refetchQueries: ['Trees'],
+  });
+
+  return (
+    <form
+      className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-amber-900/10 dark:bg-stone-900 dark:ring-stone-800"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void createTree({
+          variables: {
+            input: { name, description: description || undefined },
+          },
+        }).then(onDone);
+      }}
+    >
+      <div className="flex flex-col gap-3">
+        <input
+          autoFocus
+          required
+          maxLength={200}
+          placeholder={t('treeNameLabel')}
+          aria-label={t('treeNameLabel')}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          className={inputClass}
+        />
+        <input
+          placeholder={t('treeDescLabel')}
+          aria-label={t('treeDescLabel')}
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          className={inputClass}
+        />
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={loading || !name.trim()}
+            className={primaryButtonClass}
+          >
+            {loading ? t('submitting') : t('createAction')}
+          </button>
+          <button
+            type="button"
+            onClick={onDone}
+            className="rounded-xl px-4 py-2.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+          >
+            {t('cancel')}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
 export function Trees() {
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const { data, loading, error } = useQuery(TREES_QUERY);
+  const [creating, setCreating] = useState(false);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 sm:px-6">
@@ -33,13 +104,30 @@ export function Trees() {
             {t('treesSubtitle')}
           </p>
         </div>
-        {user && (
-          <span className="rounded-full bg-amber-100/80 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-            {user.displayName ?? user.email} ·{' '}
-            {user.role === 'ADMIN' ? t('roleAdmin') : t('roleMember')}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {user && (
+            <span className="rounded-full bg-amber-100/80 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              {user.displayName ?? user.email} ·{' '}
+              {user.role === 'ADMIN' ? t('roleAdmin') : t('roleMember')}
+            </span>
+          )}
+          {user?.role === 'ADMIN' && !creating && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:from-amber-500 hover:to-amber-600"
+            >
+              + {t('newTree')}
+            </button>
+          )}
+        </div>
       </div>
+
+      {creating && (
+        <div className="mt-6 max-w-md">
+          <NewTreeForm onDone={() => setCreating(false)} />
+        </div>
+      )}
 
       {loading && (
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -51,6 +51,11 @@ const translations = {
     created: 'Created',
     roleAdmin: 'Admin',
     roleMember: 'Member',
+    newTree: 'New tree',
+    treeNameLabel: 'Tree name',
+    treeDescLabel: 'Description (optional)',
+    createAction: 'Create',
+    cancel: 'Cancel',
   },
   fr: {
     tagline: 'Votre histoire familiale, sur votre propre serveur.',
@@ -94,6 +99,11 @@ const translations = {
     created: 'Créé le',
     roleAdmin: 'Admin',
     roleMember: 'Membre',
+    newTree: 'Nouvel arbre',
+    treeNameLabel: 'Nom de l’arbre',
+    treeDescLabel: 'Description (facultatif)',
+    createAction: 'Créer',
+    cancel: 'Annuler',
   },
 } as const;
 

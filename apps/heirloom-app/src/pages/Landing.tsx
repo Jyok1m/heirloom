@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import { ChatPanel } from '../components/ChatPanel';
+import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 
 function Feature({ icon, title, text }: { icon: string; title: string; text: string }) {
@@ -21,6 +23,7 @@ function Feature({ icon, title, text }: { icon: string; title: string; text: str
 
 export function Landing() {
   const { t } = useI18n();
+  const { user } = useAuth();
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col items-center px-4 pb-16 pt-12 sm:px-6 sm:pt-16">
@@ -37,7 +40,18 @@ export function Landing() {
       </div>
 
       <div className="mt-10 w-full max-w-2xl">
-        <ChatPanel />
+        {user ? (
+          <div className="flex justify-center">
+            <Link
+              to="/trees"
+              className="rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-6 py-3 text-sm font-medium text-white shadow-md shadow-amber-900/20 transition hover:from-amber-500 hover:to-amber-600"
+            >
+              {t('treesTitle')} →
+            </Link>
+          </div>
+        ) : (
+          <ChatPanel />
+        )}
       </div>
 
       <div className="mt-10 grid w-full max-w-3xl gap-3 sm:grid-cols-3">

@@ -1,8 +1,17 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser, Public } from '../auth/decorators';
 import type { UserModel } from '../generated/prisma/models';
 import { AssistantService } from './assistant.service';
+import { ConversationStore } from './conversation-store.service';
 import { ChatRequestDto } from './dto/chat.dto';
 
 // REST (not GraphQL): agentic loop with multi-second latency, SSE streaming.
@@ -10,7 +19,19 @@ import { ChatRequestDto } from './dto/chat.dto';
 // talks about Heirloom and asks them to log in.
 @Controller('api/assistant')
 export class AssistantController {
-  constructor(private readonly assistantService: AssistantService) {}
+  constructor(
+    private readonly assistantService: AssistantService,
+    private readonly store: ConversationStore,
+  ) {}
+
+  // History of one of the user's conversations (empty if not theirs)
+  @Get('conversations/:id')
+  async conversation(
+    @CurrentUser() user: UserModel,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return { turns: await this.store.get(id, user.id) };
+  }
 
   @Public()
   @Post('chat')

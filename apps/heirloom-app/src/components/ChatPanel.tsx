@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { streamChat, type AssistantAction } from '../lib/assistant';
+import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 
 interface Message {
@@ -9,13 +10,43 @@ interface Message {
   error?: boolean;
 }
 
+const CONVERSATION_KEY = 'heirloom-conversation';
+
 export function ChatPanel({ treeId }: { treeId?: string }) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const conversationId = useRef<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Logged-in users get their conversation history back
+  useEffect(() => {
+    if (!user) return;
+    const saved = localStorage.getItem(CONVERSATION_KEY);
+    if (!saved) return;
+    conversationId.current = saved;
+    fetch(`/api/assistant/conversations/${saved}`, { credentials: 'include' })
+      .then(async (response) =>
+        response.ok
+          ? ((await response.json()) as {
+              turns: { role: 'user' | 'assistant'; content: string }[];
+            })
+          : null,
+      )
+      .then((data) => {
+        if (data?.turns.length) {
+          setMessages(
+            data.turns.map((turn) => ({
+              role: turn.role,
+              content: turn.content,
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -48,6 +79,9 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
             })),
           onDone: (result) => {
             conversationId.current = result.conversationId;
+            if (user) {
+              localStorage.setItem(CONVERSATION_KEY, result.conversationId);
+            }
             patchLast((last) => ({
               ...last,
               content: result.reply || last.content,
