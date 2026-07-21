@@ -11,12 +11,31 @@ services:
     networks:
       - db_network
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-heirloom}"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  adminer:
+    image: adminer:5.5.0
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_DRIVER: pgsql
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DEFAULT_DB: ${POSTGRES_DB:-heirloom}
+      ADMINER_DEFAULT_USERNAME: ${POSTGRES_USER:-heirloom}
+      ADMINER_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./docker/adminer/prefill-login.php:/var/www/html/plugins-enabled/prefill-login.php:ro
+    networks:
+      - db_network
+    depends_on:
+      db:
+        condition: service_healthy
 
 networks:
   db_network:
