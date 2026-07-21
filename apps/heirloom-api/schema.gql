@@ -30,6 +30,15 @@ input CreateEventInput {
   unionId: ID
 }
 
+input CreateMediaInput {
+  filePath: String!
+  mimeType: String!
+  notes: String
+  title: String
+  treeId: ID!
+  type: MediaType!
+}
+
 input CreatePersonInput {
   firstName: String
   lastName: String
@@ -73,6 +82,7 @@ type Event {
   dateValue: String
   description: String
   id: ID!
+  media: [Media!]!
   notes: String
   person: Person
   personId: ID
@@ -103,26 +113,68 @@ enum EventType {
   RESIDENCE
 }
 
+input LinkMediaInput {
+  eventId: ID
+  mediaId: ID!
+  personId: ID
+  sourceId: ID
+}
+
+type Media {
+  createdAt: DateTime!
+  filePath: String!
+  gedcomId: String
+  id: ID!
+  links: [MediaLink!]!
+  mimeType: String!
+  notes: String
+  title: String
+  treeId: ID!
+  type: MediaType!
+  updatedAt: DateTime!
+}
+
+type MediaLink {
+  eventId: ID
+  id: ID!
+  media: Media!
+  mediaId: ID!
+  personId: ID
+  sourceId: ID
+}
+
+enum MediaType {
+  AUDIO
+  DOCUMENT
+  IMAGE
+  VIDEO
+}
+
 type Mutation {
   addUnionChild(input: UnionChildInput!): Union!
   addUnionPartner(personId: ID!, unionId: ID!): Union!
   createCitation(input: CreateCitationInput!): Citation!
   createEvent(input: CreateEventInput!): Event!
+  createMedia(input: CreateMediaInput!): Media!
   createPerson(input: CreatePersonInput!): Person!
   createSource(input: CreateSourceInput!): Source!
   createTree(input: CreateTreeInput!): Tree!
   createUnion(input: CreateUnionInput!): Union!
   deleteCitation(id: ID!): Citation!
   deleteEvent(id: ID!): Event!
+  deleteMedia(id: ID!): Media!
   deletePerson(id: ID!): Person!
   deleteSource(id: ID!): Source!
   deleteTree(id: ID!): Tree!
   deleteUnion(id: ID!): Union!
+  linkMedia(input: LinkMediaInput!): MediaLink!
   removeUnionChild(personId: ID!, unionId: ID!): Union!
   removeUnionPartner(personId: ID!, unionId: ID!): Union!
   setUnionChildPedigree(pedigree: Pedigree!, personId: ID!, unionId: ID!): Union!
+  unlinkMedia(id: ID!): MediaLink!
   updateCitation(id: ID!, input: UpdateCitationInput!): Citation!
   updateEvent(id: ID!, input: UpdateEventInput!): Event!
+  updateMedia(id: ID!, input: UpdateMediaInput!): Media!
   updatePerson(id: ID!, input: UpdatePersonInput!): Person!
   updateSource(id: ID!, input: UpdateSourceInput!): Source!
   updateTree(id: ID!, input: UpdateTreeInput!): Tree!
@@ -143,6 +195,7 @@ type Person {
   gedcomId: String
   id: ID!
   lastName: String
+  media: [Media!]!
   namePrefix: String
   nameSuffix: String
   nickname: String
@@ -156,6 +209,8 @@ type Person {
 
 type Query {
   event(id: ID!): Event!
+  mediaItem(id: ID!): Media!
+  mediaItems(treeId: ID!): [Media!]!
   person(id: ID!): Person!
   persons(skip: Int! = 0, take: Int! = 50, treeId: ID!): [Person!]!
   source(id: ID!): Source!
@@ -179,6 +234,7 @@ type Source {
   createdAt: DateTime!
   gedcomId: String
   id: ID!
+  media: [Media!]!
   notes: String
   publication: String
   repository: String
@@ -191,6 +247,7 @@ type Tree {
   createdAt: DateTime!
   description: String
   id: ID!
+  mediaItems: [Media!]!
   name: String!
   persons: [Person!]!
   sources: [Source!]!
@@ -243,6 +300,14 @@ input UpdateEventInput {
   notes: String
   place: String
   type: EventType
+}
+
+input UpdateMediaInput {
+  filePath: String
+  mimeType: String
+  notes: String
+  title: String
+  type: MediaType
 }
 
 input UpdatePersonInput {

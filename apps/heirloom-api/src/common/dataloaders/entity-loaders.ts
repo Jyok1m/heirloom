@@ -4,6 +4,8 @@ import type {
   ChildInUnionModel as ChildInUnion,
   CitationModel as Citation,
   EventModel as Event,
+  MediaLinkModel as MediaLink,
+  MediaModel as Media,
   SourceModel as Source,
   PersonModel as Person,
   UnionModel as Union,
@@ -90,6 +92,33 @@ export class EntityLoaders {
       this.prisma.childInUnion.findMany({
         where: { unionId: { in: unionIds } },
       }),
+  );
+
+  readonly mediaById = idLoader<Media>((ids) =>
+    this.prisma.media.findMany({ where: { id: { in: ids } } }),
+  );
+
+  readonly mediaByTreeId = groupLoader<Media>('treeId', (treeIds) =>
+    this.prisma.media.findMany({
+      where: { treeId: { in: treeIds } },
+      orderBy: { createdAt: 'asc' },
+    }),
+  );
+
+  readonly mediaLinksByMediaId = groupLoader<MediaLink>('mediaId', (ids) =>
+    this.prisma.mediaLink.findMany({ where: { mediaId: { in: ids } } }),
+  );
+
+  readonly mediaLinksByPersonId = groupLoader<MediaLink>('personId', (ids) =>
+    this.prisma.mediaLink.findMany({ where: { personId: { in: ids } } }),
+  );
+
+  readonly mediaLinksByEventId = groupLoader<MediaLink>('eventId', (ids) =>
+    this.prisma.mediaLink.findMany({ where: { eventId: { in: ids } } }),
+  );
+
+  readonly mediaLinksBySourceId = groupLoader<MediaLink>('sourceId', (ids) =>
+    this.prisma.mediaLink.findMany({ where: { sourceId: { in: ids } } }),
   );
 
   readonly eventById = idLoader<Event>((ids) =>
