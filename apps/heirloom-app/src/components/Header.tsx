@@ -13,7 +13,7 @@ export function Header() {
     <header className="sticky top-0 z-10 border-b border-amber-900/10 bg-[#faf7f0]/85 backdrop-blur dark:border-stone-800 dark:bg-stone-900/85">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-sm text-white shadow-sm">
+          <span className="grid size-8 place-items-center rounded-xl bg-linear-to-br from-amber-500 to-amber-700 text-sm text-white shadow-sm">
             🌳
           </span>
           <span className="font-display text-xl font-semibold tracking-tight text-stone-800 dark:text-stone-100">
@@ -60,7 +60,7 @@ export function Header() {
           ) : (
             <Link
               to="/login"
-              className="ml-1 rounded-full bg-gradient-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:from-amber-500 hover:to-amber-600"
+              className="ml-1 rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:from-amber-500 hover:to-amber-600"
             >
               {t('login')}
             </Link>

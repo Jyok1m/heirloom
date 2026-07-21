@@ -73,8 +73,8 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
       aria-label={t('chatTitle')}
       className="flex w-full flex-col overflow-hidden rounded-3xl bg-white shadow-xl shadow-amber-900/10 ring-1 ring-amber-900/10 dark:bg-stone-900 dark:shadow-black/30 dark:ring-stone-700/60"
     >
-      <div className="flex items-center gap-3 border-b border-amber-900/10 bg-gradient-to-r from-amber-50 to-orange-50/60 px-5 py-3.5 dark:border-stone-800 dark:from-stone-900 dark:to-stone-900">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-500 to-amber-700 text-base text-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-amber-900/10 bg-linear-to-r from-amber-50 to-orange-50/60 px-5 py-3.5 dark:border-stone-800 dark:from-stone-900 dark:to-stone-900">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-amber-500 to-amber-700 text-base text-white shadow-sm">
           ✦
         </span>
         <div className="min-w-0">
@@ -89,7 +89,7 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
 
       <div
         ref={scrollRef}
-        className="flex h-72 flex-col gap-3 overflow-y-auto bg-gradient-to-b from-transparent to-amber-50/40 px-4 py-4 sm:h-80 sm:px-5 dark:to-stone-950/40"
+        className="flex h-72 flex-col gap-3 overflow-y-auto bg-linear-to-b from-transparent to-amber-50/40 px-4 py-4 sm:h-80 sm:px-5 dark:to-stone-950/40"
       >
         {messages.length === 0 && (
           <p className="m-auto max-w-sm text-center text-sm leading-relaxed text-stone-400 dark:text-stone-500">
@@ -100,7 +100,7 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
           message.role === 'user' ? (
             <div
               key={i}
-              className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-gradient-to-b from-amber-600 to-amber-700 px-4 py-2.5 text-sm text-white shadow-sm"
+              className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-linear-to-b from-amber-600 to-amber-700 px-4 py-2.5 text-sm text-white shadow-sm"
             >
               {message.content}
             </div>
@@ -163,7 +163,7 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
             type="submit"
             disabled={busy || !input.trim()}
             aria-label={t('send')}
-            className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-amber-600 to-amber-700 text-white shadow-sm transition hover:from-amber-500 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-35"
+            className="grid size-9 shrink-0 place-items-center rounded-xl bg-linear-to-b from-amber-600 to-amber-700 text-white shadow-sm transition hover:from-amber-500 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-35"
           >
             {busy ? (
               <span className="size-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
