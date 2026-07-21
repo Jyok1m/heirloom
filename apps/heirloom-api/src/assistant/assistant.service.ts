@@ -4,7 +4,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TreesService } from '../trees/trees.service';
-import { AssistantToolsService } from './assistant-tools.service';
+import {
+  AssistantContext,
+  AssistantToolsService,
+} from './assistant-tools.service';
 import { ChatRequestDto } from './dto/chat.dto';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { OpenAiCompatProvider } from './providers/openai-compat.provider';
@@ -31,12 +34,21 @@ export class AssistantService {
   ) {}
 
   async chat({ treeId, messages }: ChatRequestDto) {
-    const tree = await this.treesService.findOne(treeId);
     const provider = this.buildProvider();
-    const tools = this.toolsService.buildTools(treeId);
+
+    let context: string;
+    if (treeId) {
+      const tree = await this.treesService.findOne(treeId);
+      context = `Current family tree: "${tree.name}" (id ${tree.id}).`;
+    } else {
+      context = `No family tree is selected yet. Start by listing the existing trees (list_trees) or creating one (create_tree), then pass its treeId to the other tools. Guide the user step by step: create the tree, then their first persons, unions and events.`;
+    }
+
+    const ctx: AssistantContext = {};
+    const tools = this.toolsService.buildTools(treeId, ctx);
 
     const result = await provider.runAgent({
-      system: `${SYSTEM_PROMPT}\n\nCurrent family tree: "${tree.name}" (id ${tree.id}).`,
+      system: `${SYSTEM_PROMPT}\n\n${context}`,
       messages,
       tools,
     });
@@ -44,6 +56,8 @@ export class AssistantService {
     return {
       reply: result.reply,
       actions: result.actions,
+      // The tree the conversation is (now) about, so the client can pin it
+      treeId: treeId ?? ctx.createdTreeId ?? null,
     };
   }
 
@@ -61,6 +75,13 @@ export class AssistantService {
           this.config.get<string>('AI_BASE_URL') ?? 'https://api.openai.com/v1',
           apiKey,
           model ?? 'gpt-4.1',
+        );
+      case 'ollama':
+        return new OpenAiCompatProvider(
+          this.config.get<string>('AI_BASE_URL') ??
+            'http://localhost:11434/v1',
+          apiKey,
+          model ?? 'qwen3:8b',
         );
       case 'llamacpp':
         return new OpenAiCompatProvider(

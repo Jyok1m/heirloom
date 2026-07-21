@@ -4,6 +4,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsIn,
+  IsOptional,
   IsUUID,
   MaxLength,
   ValidateNested,
@@ -18,8 +19,10 @@ export class ChatTurnDto {
 }
 
 export class ChatRequestDto {
+  // Omit to let the assistant list/create trees and drive the onboarding
+  @IsOptional()
   @IsUUID()
-  treeId!: string;
+  treeId?: string;
 
   // Full conversation history, last item being the new user message
   @IsArray()

@@ -37,8 +37,17 @@ services:
       db:
         condition: service_healthy
 
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
 networks:
   db_network:
 
 volumes:
   db_data:
+  ollama:

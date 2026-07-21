@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventsService } from '../events/events.service';
 import {
   EventType,
@@ -9,7 +13,13 @@ import {
 import { PersonsService } from '../persons/persons.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RelationshipsService } from '../relationships/relationships.service';
+import { TreesService } from '../trees/trees.service';
 import { AgentTool } from './providers/provider.interface';
+
+// Mutable per-conversation context shared with AssistantService
+export interface AssistantContext {
+  createdTreeId?: string;
+}
 
 const PERSON_FIELDS = {
   firstName: { type: 'string' },
@@ -43,27 +53,91 @@ function schema(
   return { type: 'object', properties, required, additionalProperties: false };
 }
 
-// Tools the agent can use. All of them are bound to one tree (the one the
-// user is chatting about) so the model can never touch another tree.
+// Tools the agent can use. When the chat is bound to a tree, every tool is
+// scoped to it. Without a bound tree, the agent also gets list_trees and
+// create_tree, and the other tools take an explicit treeId argument.
 // Deliberately no delete tools: destructive actions stay manual.
 @Injectable()
 export class AssistantToolsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly treesService: TreesService,
     private readonly personsService: PersonsService,
     private readonly relationshipsService: RelationshipsService,
     private readonly eventsService: EventsService,
   ) {}
 
-  buildTools(treeId: string): AgentTool[] {
-    return [
+  buildTools(
+    boundTreeId: string | undefined,
+    ctx: AssistantContext,
+  ): AgentTool[] {
+    // In unbound mode the model must say which tree it operates on
+    const treeProp = boundTreeId
+      ? {}
+      : {
+          treeId: {
+            type: 'string',
+            description: 'Id of the family tree to operate on',
+          },
+        };
+    const treeRequired = boundTreeId ? [] : ['treeId'];
+    const requireTree = (input: Record<string, unknown>): string => {
+      const id =
+        boundTreeId ??
+        (typeof input.treeId === 'string' ? input.treeId : undefined);
+      if (!id) throw new BadRequestException('treeId is required');
+      return id;
+    };
+
+    const tools: AgentTool[] = [];
+
+    if (!boundTreeId) {
+      tools.push(
+        {
+          name: 'list_trees',
+          description:
+            'List the existing family trees with their ids and names.',
+          inputSchema: schema({}),
+          execute: async () => ({
+            trees: await this.prisma.tree.findMany({
+              select: { id: true, name: true, description: true },
+              orderBy: { createdAt: 'asc' },
+            }),
+          }),
+        },
+        {
+          name: 'create_tree',
+          description:
+            'Create a new family tree. Returns its id, to pass to the other tools afterwards.',
+          inputSchema: schema(
+            { name: { type: 'string' }, description: { type: 'string' } },
+            ['name'],
+          ),
+          execute: async (input) => {
+            const tree = await this.treesService.create({
+              name: String(input.name),
+              description:
+                typeof input.description === 'string'
+                  ? input.description
+                  : undefined,
+            });
+            ctx.createdTreeId = tree.id;
+            return { treeId: tree.id, name: tree.name };
+          },
+        },
+      );
+    }
+
+    tools.push(
       {
         name: 'search_persons',
         description:
-          'Search persons in the family tree by name (first name, last name or nickname, case-insensitive). Returns matching persons with their ids. Use an empty query to list everyone.',
-        inputSchema: schema({ query: { type: 'string' } }),
-        execute: async ({ query }) => {
-          const q = typeof query === 'string' ? query.trim() : '';
+          'Search persons in a family tree by name (first name, last name or nickname, case-insensitive). Returns matching persons with their ids. Use an empty query to list everyone.',
+        inputSchema: schema({ ...treeProp, query: { type: 'string' } },
+          treeRequired),
+        execute: async (input) => {
+          const treeId = requireTree(input);
+          const q = typeof input.query === 'string' ? input.query.trim() : '';
           const persons = await this.prisma.person.findMany({
             where: {
               treeId,
@@ -95,19 +169,28 @@ export class AssistantToolsService {
         name: 'create_person',
         description:
           'Create a new person in the family tree. Returns the created person with its id.',
-        inputSchema: schema({ ...PERSON_FIELDS }),
-        execute: (input) =>
-          this.personsService.create({ treeId, ...(input as object) }),
+        inputSchema: schema({ ...treeProp, ...PERSON_FIELDS }, treeRequired),
+        execute: (input) => {
+          const treeId = requireTree(input);
+          const { treeId: _ignored, ...fields } = input;
+          return this.personsService.create({
+            treeId,
+            ...(fields as object),
+          });
+        },
       },
       {
         name: 'update_person',
         description:
           'Update fields of an existing person (names, sex, notes). Only the provided fields change.',
-        inputSchema: schema({ personId: { type: 'string' }, ...PERSON_FIELDS }, [
-          'personId',
-        ]),
+        inputSchema: schema(
+          { personId: { type: 'string' }, ...PERSON_FIELDS },
+          ['personId'],
+        ),
         execute: async ({ personId, ...fields }) => {
-          await this.assertInTree(String(personId), treeId);
+          if (boundTreeId) {
+            await this.assertInTree(String(personId), boundTreeId);
+          }
           return this.personsService.update(String(personId), fields);
         },
       },
@@ -117,6 +200,7 @@ export class AssistantToolsService {
           'Create a union (couple) between up to two persons, e.g. a marriage. Provide the partner ids. Returns the union id, needed to attach children or union events.',
         inputSchema: schema(
           {
+            ...treeProp,
             type: { type: 'string', enum: Object.values(UnionType) },
             partnerIds: {
               type: 'array',
@@ -124,14 +208,17 @@ export class AssistantToolsService {
               description: 'Ids of the partners (0 to 2 persons)',
             },
           },
-          [],
+          treeRequired,
         ),
-        execute: async ({ type, partnerIds }) => {
+        execute: async (input) => {
+          const treeId = requireTree(input);
           const union = await this.relationshipsService.create({
             treeId,
-            type: type as UnionType | undefined,
+            type: input.type as UnionType | undefined,
           });
-          const ids = Array.isArray(partnerIds) ? partnerIds.slice(0, 2) : [];
+          const ids = Array.isArray(input.partnerIds)
+            ? input.partnerIds.slice(0, 2)
+            : [];
           for (const personId of ids) {
             await this.relationshipsService.addPartner(
               union.id,
@@ -186,8 +273,9 @@ export class AssistantToolsService {
           ['type'],
         ),
         execute: async (input) => {
-          if (input.personId)
-            await this.assertInTree(String(input.personId), treeId);
+          if (input.personId && boundTreeId) {
+            await this.assertInTree(String(input.personId), boundTreeId);
+          }
           const { dateSort, ...rest } = input;
           return this.eventsService.create({
             ...(rest as object),
@@ -208,7 +296,9 @@ export class AssistantToolsService {
             dateSort: dateSort ? new Date(String(dateSort)) : undefined,
           } as Parameters<EventsService['update']>[1]),
       },
-    ];
+    );
+
+    return tools;
   }
 
   // The chat is scoped to one tree; reject ids pointing elsewhere
@@ -260,6 +350,7 @@ export class AssistantToolsService {
 
     return {
       id: person.id,
+      treeId: person.treeId,
       firstName: person.firstName,
       lastName: person.lastName,
       nickname: person.nickname,
