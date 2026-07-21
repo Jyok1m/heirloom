@@ -1,22 +1,27 @@
 import {
+  CubicBezierLine,
+  Environment,
+  Lightformer,
   Line,
   OrbitControls,
-  QuadraticBezierLine,
   RoundedBox,
   Sparkles,
   Text,
 } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useMemo, useRef, useState } from 'react';
-import type { Group } from 'three';
+import type { Group, Mesh } from 'three';
 import type { PersonNode, TreeLayout, TreePerson } from './layout';
 
-const SEX_COLORS: Record<TreePerson['sex'], string> = {
-  MALE: '#2d6a6f',
-  FEMALE: '#b45309',
-  OTHER: '#6d5aa8',
-  UNKNOWN: '#57534e',
+// Subdued heritage palette — accents only, cards stay dark ink
+const SEX_ACCENTS: Record<TreePerson['sex'], string> = {
+  MALE: '#5f8a8f',
+  FEMALE: '#c08552',
+  OTHER: '#8a7aa8',
+  UNKNOWN: '#7a736b',
 };
+
+const CARD = { width: 2.5, height: 1.02, depth: 0.1 };
 
 function displayName(person: TreePerson): string {
   return (
@@ -35,22 +40,23 @@ function PersonCard({
 }) {
   const [hovered, setHovered] = useState(false);
   const group = useRef<Group>(null);
-  const scale = selected ? 1.14 : hovered ? 1.07 : 1;
-
-  // Gentle idle float, phase-shifted per node
   const phase = useMemo(() => Math.random() * Math.PI * 2, []);
+
   useFrame(({ clock }) => {
-    if (group.current) {
-      group.current.position.y =
-        node.position[1] + Math.sin(clock.elapsedTime * 0.6 + phase) * 0.07;
-    }
+    if (!group.current) return;
+    group.current.position.y =
+      node.position[1] + Math.sin(clock.elapsedTime * 0.45 + phase) * 0.05;
+    const target = selected ? 1.1 : hovered ? 1.045 : 1;
+    group.current.scale.lerp(
+      { x: target, y: target, z: target } as never,
+      0.12,
+    );
   });
 
   return (
     <group
       ref={group}
       position={node.position}
-      scale={scale}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(node.person.id);
@@ -65,65 +71,80 @@ function PersonCard({
         document.body.style.cursor = 'auto';
       }}
     >
-      <RoundedBox args={[2.5, 1.05, 0.22]} radius={0.12} smoothness={4}>
-        <meshStandardMaterial
-          color={SEX_COLORS[node.person.sex]}
+      {/* Thin brass frame behind the card */}
+      <RoundedBox
+        args={[CARD.width + 0.1, CARD.height + 0.1, CARD.depth - 0.04]}
+        radius={0.09}
+        smoothness={4}
+        position={[0, 0, -0.02]}
+      >
+        <meshPhysicalMaterial
+          color={selected ? '#d4a24c' : '#8a6a35'}
           roughness={0.35}
-          metalness={0.25}
-          emissive={selected ? '#f59e0b' : hovered ? '#78350f' : '#000000'}
-          emissiveIntensity={selected ? 0.35 : hovered ? 0.25 : 0}
+          metalness={0.85}
+          emissive={selected ? '#b8860b' : '#000000'}
+          emissiveIntensity={selected ? 0.25 : 0}
         />
       </RoundedBox>
-      {selected && (
-        <RoundedBox args={[2.66, 1.21, 0.16]} radius={0.14} smoothness={4}>
-          <meshBasicMaterial color="#fbbf24" wireframe transparent opacity={0.55} />
-        </RoundedBox>
-      )}
+
+      {/* Ink card */}
+      <RoundedBox
+        args={[CARD.width, CARD.height, CARD.depth]}
+        radius={0.07}
+        smoothness={4}
+      >
+        <meshPhysicalMaterial
+          color={hovered || selected ? '#312a22' : '#26211b'}
+          roughness={0.62}
+          metalness={0.06}
+          clearcoat={0.45}
+          clearcoatRoughness={0.35}
+        />
+      </RoundedBox>
+
+      {/* Sex accent: slim bar on the left edge */}
+      <mesh position={[-CARD.width / 2 + 0.11, 0, CARD.depth / 2 + 0.001]}>
+        <planeGeometry args={[0.055, CARD.height - 0.3]} />
+        <meshBasicMaterial
+          color={SEX_ACCENTS[node.person.sex]}
+          transparent
+          opacity={0.95}
+        />
+      </mesh>
+
       <Text
-        position={[0, 0.08, 0.13]}
-        fontSize={0.24}
-        maxWidth={2.2}
+        position={[0.06, 0, CARD.depth / 2 + 0.012]}
+        fontSize={0.21}
+        maxWidth={2.05}
         textAlign="center"
-        color="#fefce8"
-        outlineWidth={0.008}
-        outlineColor="#00000055"
+        color="#ece2d0"
+        letterSpacing={0.015}
+        lineHeight={1.15}
       >
         {displayName(node.person)}
-      </Text>
-      <Text
-        position={[0, -0.28, 0.13]}
-        fontSize={0.13}
-        color="#fde68a"
-        fillOpacity={0.75}
-      >
-        {node.person.sex === 'MALE'
-          ? '♂'
-          : node.person.sex === 'FEMALE'
-            ? '♀'
-            : '·'}
       </Text>
     </group>
   );
 }
 
-function UnionKnot({ position }: { position: [number, number, number] }) {
-  const ref = useRef<Group>(null);
+function UnionRing({ position }: { position: [number, number, number] }) {
+  const ref = useRef<Mesh>(null);
   useFrame(({ clock }) => {
-    if (ref.current) ref.current.rotation.y = clock.elapsedTime * 0.6;
+    if (!ref.current) return;
+    ref.current.rotation.x = Math.PI / 2 + Math.sin(clock.elapsedTime * 0.4) * 0.18;
+    ref.current.rotation.z = clock.elapsedTime * 0.25;
   });
   return (
-    <group ref={ref} position={position}>
-      <mesh>
-        <icosahedronGeometry args={[0.17, 0]} />
-        <meshStandardMaterial
-          color="#f59e0b"
-          roughness={0.2}
-          metalness={0.7}
-          emissive="#b45309"
-          emissiveIntensity={0.4}
-        />
-      </mesh>
-    </group>
+    <mesh ref={ref} position={position}>
+      <torusGeometry args={[0.14, 0.035, 24, 48]} />
+      <meshPhysicalMaterial
+        color="#c9982f"
+        roughness={0.28}
+        metalness={0.9}
+        emissive="#7a5a10"
+        emissiveIntensity={0.18}
+      />
+    </mesh>
   );
 }
 
@@ -142,28 +163,49 @@ export function TreeScene({
     [layout],
   );
 
-  const cameraZ = Math.max(9, layout.bounds.width * 0.85, layout.bounds.height);
+  const cameraZ = Math.max(9, layout.bounds.width * 0.8, layout.bounds.height);
 
   return (
     <Canvas
-      camera={{ position: [0, 1.2, cameraZ], fov: 46 }}
+      camera={{ position: [0, 0.6, cameraZ], fov: 42 }}
       onPointerMissed={() => onSelect(null)}
       dpr={[1, 2]}
     >
-      <color attach="background" args={['#191410']} />
-      <fog attach="fog" args={['#191410', cameraZ, cameraZ * 2.6]} />
+      <color attach="background" args={['#151009']} />
+      <fog attach="fog" args={['#151009', cameraZ * 1.1, cameraZ * 3]} />
 
-      <hemisphereLight args={['#fde68a', '#292018', 0.5]} />
-      <directionalLight position={[6, 10, 8]} intensity={1.4} color="#fff7ed" />
-      <pointLight position={[-8, -4, 6]} intensity={40} color="#f59e0b" />
+      {/* Procedural warm studio ambiance (no network fetch) */}
+      <Environment resolution={128}>
+        <Lightformer
+          position={[0, 6, -8]}
+          scale={[14, 6, 1]}
+          intensity={1.6}
+          color="#f5e0b8"
+        />
+        <Lightformer
+          position={[-8, -2, 4]}
+          scale={[5, 5, 1]}
+          intensity={0.7}
+          color="#c9762c"
+        />
+        <Lightformer
+          position={[9, 3, 2]}
+          scale={[4, 8, 1]}
+          intensity={0.55}
+          color="#fff6e5"
+        />
+      </Environment>
+
+      <ambientLight intensity={0.25} color="#f5e6c8" />
+      <directionalLight position={[5, 9, 7]} intensity={0.9} color="#ffedd0" />
 
       <Sparkles
-        count={140}
-        scale={[layout.bounds.width + 8, layout.bounds.height + 6, 8]}
-        size={2.2}
-        speed={0.25}
-        opacity={0.5}
-        color="#fcd34d"
+        count={70}
+        scale={[layout.bounds.width + 7, layout.bounds.height + 5, 7]}
+        size={1.3}
+        speed={0.16}
+        opacity={0.3}
+        color="#e8c56f"
       />
 
       {layout.unions.map(({ union, position }) => (
@@ -174,37 +216,31 @@ export function TreeScene({
               <Line
                 key={partnerId}
                 points={[partner, position]}
-                color="#d97706"
-                lineWidth={1.6}
+                color="#a97f2e"
+                lineWidth={1.1}
                 transparent
-                opacity={0.8}
+                opacity={0.55}
               />
             ) : null;
           })}
           {union.childIds.map((childId) => {
             const child = positionOf.get(childId);
             if (!child) return null;
-            const mid: [number, number, number] = [
-              (position[0] + child[0]) / 2,
-              (position[1] + child[1]) / 2 - 0.7,
-              (position[2] + child[2]) / 2,
-            ];
             return (
-              <QuadraticBezierLine
+              <CubicBezierLine
                 key={childId}
                 start={position}
-                end={[child[0], child[1] + 0.62, child[2]]}
-                mid={mid}
-                color="#a8a29e"
-                lineWidth={1.2}
+                midA={[position[0], position[1] - 1.1, position[2]]}
+                midB={[child[0], child[1] + 1.2, child[2]]}
+                end={[child[0], child[1] + CARD.height / 2 + 0.07, child[2]]}
+                color="#6f6659"
+                lineWidth={1}
                 transparent
-                opacity={0.65}
-                dashed
-                dashScale={6}
+                opacity={0.5}
               />
             );
           })}
-          <UnionKnot position={position} />
+          <UnionRing position={position} />
         </group>
       ))}
 
@@ -223,6 +259,8 @@ export function TreeScene({
         dampingFactor={0.08}
         minDistance={4}
         maxDistance={cameraZ * 2.2}
+        maxPolarAngle={Math.PI * 0.72}
+        minPolarAngle={Math.PI * 0.22}
       />
     </Canvas>
   );

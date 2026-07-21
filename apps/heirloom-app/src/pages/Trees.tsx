@@ -29,6 +29,23 @@ const CREATE_TREE = graphql(`
   }
 `);
 
+const UPDATE_TREE = graphql(`
+  mutation UpdateTree($id: ID!, $input: UpdateTreeInput!) {
+    updateTree(id: $id, input: $input) {
+      id
+      name
+    }
+  }
+`);
+
+const DELETE_TREE = graphql(`
+  mutation DeleteTree($id: ID!) {
+    deleteTree(id: $id) {
+      id
+    }
+  }
+`);
+
 function NewTreeForm({ onDone }: { onDone: () => void }) {
   const { t } = useI18n();
   const [name, setName] = useState('');
@@ -93,6 +110,9 @@ export function Trees() {
   const { user } = useAuth();
   const { data, loading, error } = useQuery(TREES_QUERY);
   const [creating, setCreating] = useState(false);
+  const [updateTree] = useMutation(UPDATE_TREE, { refetchQueries: ['Trees'] });
+  const [deleteTree] = useMutation(DELETE_TREE, { refetchQueries: ['Trees'] });
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 sm:px-6">
@@ -170,9 +190,47 @@ export function Trees() {
                 <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 text-lg dark:from-stone-800 dark:to-stone-800">
                   🌳
                 </span>
-                <h2 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-100">
+                <h2 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-stone-900 dark:text-stone-100">
                   {tree.name}
                 </h2>
+                {isAdmin && (
+                  <span className="flex shrink-0 gap-0.5 opacity-0 transition group-hover:opacity-100">
+                    <button
+                      type="button"
+                      aria-label={t('renameTree')}
+                      title={t('renameTree')}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        const name = window.prompt(t('renameTree'), tree.name);
+                        if (name?.trim()) {
+                          void updateTree({
+                            variables: {
+                              id: tree.id,
+                              input: { name: name.trim() },
+                            },
+                          });
+                        }
+                      }}
+                      className="rounded-lg px-1.5 py-1 text-sm text-stone-400 transition hover:bg-amber-100 hover:text-stone-700 dark:hover:bg-stone-800"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('deleteTreeAction')}
+                      title={t('deleteTreeAction')}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        if (window.confirm(t('confirmDeleteTree'))) {
+                          void deleteTree({ variables: { id: tree.id } });
+                        }
+                      }}
+                      className="rounded-lg px-1.5 py-1 text-sm text-stone-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                    >
+                      🗑
+                    </button>
+                  </span>
+                )}
               </div>
               {tree.description && (
                 <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-stone-500 dark:text-stone-400">

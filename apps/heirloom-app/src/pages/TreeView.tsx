@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { inputClass, primaryButtonClass } from '../components/forms';
+import { MembersPanel } from '../components/MembersPanel';
 import { layoutTree, type TreePerson } from '../components/tree3d/layout';
 import { TreeScene } from '../components/tree3d/TreeScene';
 import { graphql } from '../generated';
@@ -172,6 +173,7 @@ export function TreeView() {
   const { data, loading } = useQuery(TREE_DETAIL, { variables: { id } });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [createPerson, createPersonState] = useMutation(CREATE_PERSON, {
@@ -231,12 +233,27 @@ export function TreeView() {
               {error}
             </span>
           )}
+          {user?.role === 'ADMIN' && (
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setShowMembers((v) => !v);
+                setAdding(false);
+                setSelectedId(null);
+              }}
+              className="rounded-full bg-black/30 px-3.5 py-1.5 text-sm text-amber-100 backdrop-blur transition hover:bg-black/50"
+            >
+              👥 {t('membersTitle')}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
               setError(null);
               setAdding((v) => !v);
               setSelectedId(null);
+              setShowMembers(false);
             }}
             className="rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-md transition hover:from-amber-500 hover:to-amber-600"
           >
@@ -271,9 +288,28 @@ export function TreeView() {
         )}
       </div>
 
-      {(adding || selected) && (
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_60%,rgba(10,6,2,0.55))]" />
+
+      {(adding || selected || showMembers) && (
         <aside className="absolute bottom-4 right-4 top-16 z-10 w-[320px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
-          {adding ? (
+          {showMembers ? (
+            <>
+              <div className="mb-4 flex items-start justify-between gap-2">
+                <h2 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
+                  {t('membersTitle')}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowMembers(false)}
+                  aria-label={t('close')}
+                  className="rounded-lg px-2 py-1 text-sm text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
+                >
+                  ✕
+                </button>
+              </div>
+              <MembersPanel treeId={id} />
+            </>
+          ) : adding ? (
             <>
               <h2 className="mb-4 font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
                 {t('addPerson')}

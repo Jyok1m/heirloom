@@ -3,13 +3,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AuthService } from '../auth/auth.service';
 import { EventsService } from '../events/events.service';
 import {
   EventType,
   Pedigree,
   Sex,
+  TreeRole,
   UnionType,
 } from '../generated/prisma/enums';
+import type { UserModel } from '../generated/prisma/models';
 import { PersonsService } from '../persons/persons.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RelationshipsService } from '../relationships/relationships.service';
@@ -65,18 +68,21 @@ export class AssistantToolsService {
     private readonly personsService: PersonsService,
     private readonly relationshipsService: RelationshipsService,
     private readonly eventsService: EventsService,
+    private readonly authService: AuthService,
   ) {}
 
   buildTools(options: {
     treeId?: string;
     ctx: AssistantContext;
+    // Needed by admin tools (invitations are created on their behalf)
+    user?: UserModel;
     // Trees the user can read (undefined = all, for admins)
     allowedTreeIds?: string[];
     // Trees the user can write to (undefined = all; [] = read-only viewer).
     // Deletions are impossible here regardless: no delete tool exists.
     writableTreeIds?: string[];
   }): AgentTool[] {
-    const { treeId: boundTreeId, ctx, allowedTreeIds, writableTreeIds } =
+    const { treeId: boundTreeId, ctx, user, allowedTreeIds, writableTreeIds } =
       options;
     const readOnly = writableTreeIds !== undefined && writableTreeIds.length === 0;
     const isAdmin = writableTreeIds === undefined;
@@ -203,6 +209,39 @@ export class AssistantToolsService {
           this.getPersonDetails(String(personId), allowedTreeIds),
       },
     );
+
+    // Member management: admins only, and no removal (deletions stay manual)
+    if (isAdmin && user) {
+      tools.push(
+        {
+          name: 'list_members',
+          description:
+            'List the members having access to a family tree (email, role VIEWER or CONTRIBUTOR).',
+          inputSchema: schema({ ...treeProp }, treeRequired),
+          execute: async (input) => ({
+            members: await this.authService.listMembers(requireTree(input)),
+          }),
+        },
+        {
+          name: 'invite_member',
+          description:
+            'Create an invitation link granting access to a family tree. role VIEWER = read-only, CONTRIBUTOR = can add and edit (no deletion). Give the returned URL to the user so they can share it.',
+          inputSchema: schema(
+            {
+              ...treeProp,
+              role: { type: 'string', enum: Object.values(TreeRole) },
+            },
+            [...treeRequired, 'role'],
+          ),
+          execute: (input) =>
+            this.authService.createInvitation(
+              user,
+              requireTree(input),
+              input.role as TreeRole,
+            ),
+        },
+      );
+    }
 
     if (readOnly) return tools;
 

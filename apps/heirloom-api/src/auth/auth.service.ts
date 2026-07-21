@@ -143,6 +143,57 @@ export class AuthService {
     };
   }
 
+  // ------------------------------------------------------------------ members
+
+  async listMembers(treeId: string) {
+    const memberships = await this.prisma.treeMembership.findMany({
+      where: { treeId },
+      include: { user: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return memberships.map((membership) => ({
+      userId: membership.userId,
+      email: membership.user.email,
+      displayName: membership.user.displayName,
+      role: membership.role,
+      since: membership.createdAt,
+    }));
+  }
+
+  async removeMember(treeId: string, userId: string) {
+    try {
+      await this.prisma.treeMembership.delete({
+        where: { userId_treeId: { userId, treeId } },
+      });
+    } catch {
+      throw new NotFoundException('Membership not found');
+    }
+    return { ok: true };
+  }
+
+  async listPendingInvitations(treeId: string) {
+    const invitations = await this.prisma.invitation.findMany({
+      where: { treeId, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const frontend = this.config.get<string>('FRONTEND_URL') ?? '';
+    return invitations.map((invitation) => ({
+      id: invitation.id,
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+      url: `${frontend}/invite/${invitation.token}`,
+    }));
+  }
+
+  async revokeInvitation(id: string) {
+    try {
+      await this.prisma.invitation.delete({ where: { id } });
+    } catch {
+      throw new NotFoundException('Invitation not found');
+    }
+    return { ok: true };
+  }
+
   // ------------------------------------------------------------------ helpers
 
   private async createUser(

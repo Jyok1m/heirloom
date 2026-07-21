@@ -97,6 +97,7 @@ export class AssistantService {
       tools = this.toolsService.buildTools({
         treeId,
         ctx,
+        user,
         allowedTreeIds,
         writableTreeIds,
       });

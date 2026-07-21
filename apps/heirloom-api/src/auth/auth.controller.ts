@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -78,7 +79,37 @@ export class AuthController {
     );
   }
 
+  // --------------------------------------------------------------- members
+
+  @Roles('ADMIN')
+  @Get('members/:treeId')
+  listMembers(@Param('treeId') treeId: string) {
+    return this.authService.listMembers(treeId);
+  }
+
+  @Roles('ADMIN')
+  @Delete('members/:treeId/:userId')
+  removeMember(
+    @Param('treeId') treeId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.authService.removeMember(treeId, userId);
+  }
+
   // ------------------------------------------------------------ invitations
+
+  // Declared before invitations/:token so "pending" is not read as a token
+  @Roles('ADMIN')
+  @Get('invitations/pending/:treeId')
+  listPendingInvitations(@Param('treeId') treeId: string) {
+    return this.authService.listPendingInvitations(treeId);
+  }
+
+  @Roles('ADMIN')
+  @Delete('invitations/:id')
+  revokeInvitation(@Param('id') id: string) {
+    return this.authService.revokeInvitation(id);
+  }
 
   @Roles('ADMIN')
   @Post('invitations')
