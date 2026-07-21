@@ -20,6 +20,7 @@ import { icons } from '../lib/icons';
 import { enumLabel, SEXES } from '../lib/genealogy';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
+import { useNotify } from '../lib/notify';
 
 const headerButton =
   'pointer-events-auto rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/85 dark:text-stone-300 dark:ring-stone-700';
@@ -119,7 +120,8 @@ export function TreeView() {
   });
   const [deletePerson] = useMutation(DELETE_PERSON);
   const [panel, setPanel] = useState<Panel>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { message } = useNotify();
+  const fail = () => message.error(t('forbidden'));
 
   // Bulk removal from the canvas marquee selection
   const removePersons = async (ids: string[]) => {
@@ -129,7 +131,7 @@ export function TreeView() {
       }
       if (panel?.kind === 'person' && ids.includes(panel.id)) setPanel(null);
     } catch {
-      setError(t('forbidden'));
+      fail();
     } finally {
       await refetch();
     }
@@ -147,7 +149,6 @@ export function TreeView() {
   );
   const others = tree?.persons ?? [];
   const sources = sourcesData?.tree.sources ?? [];
-  const fail = () => setError(t('forbidden'));
 
   const title =
     panel?.kind === 'members'
@@ -178,17 +179,9 @@ export function TreeView() {
           {tree?.name ?? '…'}
         </h1>
         <div className="pointer-events-auto ml-auto flex items-center gap-2">
-          {error && (
-            <span className="rounded-full bg-red-100 px-3 py-1 text-xs text-red-800 shadow-sm dark:bg-red-950 dark:text-red-300">
-              {error}
-            </span>
-          )}
           <button
             type="button"
-            onClick={() => {
-              setError(null);
-              setPanel({ kind: 'sources' });
-            }}
+            onClick={() => setPanel({ kind: 'sources' })}
             className={headerButton}
           >
             <FontAwesomeIcon icon={icons.book} className="mr-1.5" />
@@ -197,10 +190,7 @@ export function TreeView() {
           {isAdmin && (
             <button
               type="button"
-              onClick={() => {
-                setError(null);
-                setPanel({ kind: 'members' });
-              }}
+              onClick={() => setPanel({ kind: 'members' })}
               className={headerButton}
             >
               <FontAwesomeIcon icon={icons.users} className="mr-1.5" />
@@ -209,10 +199,7 @@ export function TreeView() {
           )}
           <button
             type="button"
-            onClick={() => {
-              setError(null);
-              setPanel({ kind: 'add' });
-            }}
+            onClick={() => setPanel({ kind: 'add' })}
             className="pointer-events-auto rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-md transition hover:from-amber-500 hover:to-amber-600"
           >
             <FontAwesomeIcon icon={icons.plus} className="mr-1.5" />
@@ -235,14 +222,12 @@ export function TreeView() {
             selectedUnionId={panel?.kind === 'union' ? panel.id : null}
             isAdmin={isAdmin ?? false}
             onRemovePersons={removePersons}
-            onSelect={(value) => {
-              setError(null);
-              setPanel(value ? { kind: 'person', id: value } : null);
-            }}
-            onSelectUnion={(unionId) => {
-              setError(null);
-              setPanel({ kind: 'union', id: unionId });
-            }}
+            onSelect={(value) =>
+              setPanel(value ? { kind: 'person', id: value } : null)
+            }
+            onSelectUnion={(unionId) =>
+              setPanel({ kind: 'union', id: unionId })
+            }
           />
         ) : (
           tree && (

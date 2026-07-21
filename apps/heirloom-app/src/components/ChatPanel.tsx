@@ -1,3 +1,4 @@
+import { useApolloClient } from '@apollo/client/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useRef, useState } from 'react';
 import { streamChat, type AssistantAction } from '../lib/assistant';
@@ -15,11 +16,17 @@ interface Message {
 export function ChatPanel({ treeId }: { treeId?: string }) {
   const { t } = useI18n();
   const { user } = useAuth();
+  const client = useApolloClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const conversationId = useRef<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Reflect the assistant's writes live: refetch whatever is on screen
+  const refreshData = () => {
+    void client.refetchQueries({ include: 'active' });
+  };
 
   // Logged-in users resume their most recent conversation (server-side)
   useEffect(() => {
@@ -71,17 +78,21 @@ export function ChatPanel({ treeId }: { treeId?: string }) {
         {
           onToken: (text) =>
             patchLast((last) => ({ ...last, content: last.content + text })),
-          onTool: (action) =>
+          onTool: (action) => {
             patchLast((last) => ({
               ...last,
               actions: [...(last.actions ?? []), action],
-            })),
+            }));
+            // Show each write in the tree as it happens
+            if (action.ok) refreshData();
+          },
           onDone: (result) => {
             conversationId.current = result.conversationId;
             patchLast((last) => ({
               ...last,
               content: result.reply || last.content,
             }));
+            refreshData();
           },
           onError: () =>
             patchLast((last) => ({

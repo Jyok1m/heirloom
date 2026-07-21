@@ -5,6 +5,7 @@ import type { Pedigree, Sex } from '../../generated/graphql';
 import { enumLabel, PEDIGREES, SEXES } from '../../lib/genealogy';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
+import { useNotify } from '../../lib/notify';
 import { EventList } from './EventList';
 import { MediaList } from './MediaList';
 import {
@@ -48,6 +49,7 @@ export function PersonPanel({
   onOpenPerson(id: string): void;
 }) {
   const { t, lang } = useI18n();
+  const { confirm } = useNotify();
   const { data } = useQuery(PERSON_DETAIL, { variables: { id: personId } });
   const [updatePerson, updateState] = useMutation(UPDATE_PERSON, {
     refetchQueries: REFETCH,
@@ -424,9 +426,11 @@ export function PersonPanel({
         <button
           type="button"
           onClick={() => {
-            if (window.confirm(t('confirmDelete'))) {
-              void deletePerson({ variables: { id: person.id } }).catch(fail);
-            }
+            void confirm(t('confirmDelete'), { danger: true }).then((ok) => {
+              if (ok) {
+                void deletePerson({ variables: { id: person.id } }).catch(fail);
+              }
+            });
           }}
           className="mt-5 w-full rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
         >

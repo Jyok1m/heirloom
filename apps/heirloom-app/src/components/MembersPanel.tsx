@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n, type TranslationKey } from '../lib/i18n';
+import { useNotify } from '../lib/notify';
 import { inputClass, primaryButtonClass } from './forms';
 
 interface Member {
@@ -25,6 +26,7 @@ async function api(path: string, init?: RequestInit): Promise<unknown> {
 // Admin-only: members of a tree + invitation links
 export function MembersPanel({ treeId }: { treeId: string }) {
   const { t } = useI18n();
+  const { confirm } = useNotify();
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [role, setRole] = useState<'VIEWER' | 'CONTRIBUTOR'>('VIEWER');
@@ -76,11 +78,15 @@ export function MembersPanel({ treeId }: { treeId: string }) {
             <button
               type="button"
               onClick={() => {
-                if (window.confirm(t('confirmRemoveMember'))) {
-                  void api(`/api/auth/members/${treeId}/${member.userId}`, {
-                    method: 'DELETE',
-                  }).then(refresh);
-                }
+                void confirm(t('confirmRemoveMember'), { danger: true }).then(
+                  (ok) => {
+                    if (ok) {
+                      void api(`/api/auth/members/${treeId}/${member.userId}`, {
+                        method: 'DELETE',
+                      }).then(refresh);
+                    }
+                  },
+                );
               }}
               className="shrink-0 rounded-lg px-2 py-1 text-xs text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
             >

@@ -1,4 +1,5 @@
 import { ApolloProvider } from '@apollo/client/react';
+import { App as AntdApp, ConfigProvider, theme as antdTheme } from 'antd';
 import type { ReactNode } from 'react';
 import {
   BrowserRouter,
@@ -11,6 +12,7 @@ import { Header } from './components/Header';
 import { apolloClient } from './lib/apollo';
 import { AuthProvider, useAuth } from './lib/auth';
 import { useI18n } from './lib/i18n';
+import { ThemeProvider, useTheme } from './lib/theme';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
@@ -62,14 +64,33 @@ function Shell() {
   );
 }
 
+// antd theme follows our dark mode and amber accent
+function Themed({ children }: { children: ReactNode }) {
+  const { dark } = useTheme();
+  return (
+    <ConfigProvider
+      theme={{
+        algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        token: { colorPrimary: '#d97706', borderRadius: 12 },
+      }}
+    >
+      <AntdApp>{children}</AntdApp>
+    </ConfigProvider>
+  );
+}
+
 export function App() {
   return (
     <ApolloProvider client={apolloClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Shell />
-        </BrowserRouter>
-      </AuthProvider>
+      <ThemeProvider>
+        <Themed>
+          <AuthProvider>
+            <BrowserRouter>
+              <Shell />
+            </BrowserRouter>
+          </AuthProvider>
+        </Themed>
+      </ThemeProvider>
     </ApolloProvider>
   );
 }

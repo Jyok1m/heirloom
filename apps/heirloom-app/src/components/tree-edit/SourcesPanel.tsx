@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
+import { useNotify } from '../../lib/notify';
 import {
   CREATE_SOURCE,
   DELETE_SOURCE,
@@ -101,6 +102,7 @@ function SourceForm({
 
 export function SourcesPanel({ treeId }: { treeId: string }) {
   const { t } = useI18n();
+  const { confirm } = useNotify();
   const { data } = useQuery(TREE_SOURCES, { variables: { id: treeId } });
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -193,9 +195,13 @@ export function SourcesPanel({ treeId }: { treeId: string }) {
                   <button
                     type="button"
                     onClick={() => {
-                      if (window.confirm(t('confirmDeleteSource'))) {
-                        void deleteSource({ variables: { id: source.id } });
-                      }
+                      void confirm(t('confirmDeleteSource'), {
+                        danger: true,
+                      }).then((ok) => {
+                        if (ok) {
+                          void deleteSource({ variables: { id: source.id } });
+                        }
+                      });
                     }}
                     className={ghostButton}
                   >

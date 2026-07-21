@@ -8,6 +8,7 @@ import {
 } from '../../lib/genealogy';
 import { EVENT_ICON, icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
+import { useNotify } from '../../lib/notify';
 import {
   CREATE_CITATION,
   CREATE_EVENT,
@@ -223,6 +224,7 @@ export function EventList({
   onError(): void;
 }) {
   const { t, lang } = useI18n();
+  const { confirm } = useNotify();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [createEvent, createState] = useMutation(CREATE_EVENT, {
@@ -348,11 +350,15 @@ export function EventList({
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(t('confirmDeleteEvent'))) {
-                          void deleteEvent({ variables: { id: event.id } })
-                            .then(onChange)
-                            .catch(onError);
-                        }
+                        void confirm(t('confirmDeleteEvent'), {
+                          danger: true,
+                        }).then((ok) => {
+                          if (ok) {
+                            void deleteEvent({ variables: { id: event.id } })
+                              .then(onChange)
+                              .catch(onError);
+                          }
+                        });
                       }}
                       className={ghostButton}
                     >

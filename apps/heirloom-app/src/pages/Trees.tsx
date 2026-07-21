@@ -1,12 +1,14 @@
 import { useMutation, useQuery } from '@apollo/client/react';
-import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Input, Modal } from 'antd';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { inputClass, primaryButtonClass } from '../components/forms';
 import { graphql } from '../generated';
 import { useAuth } from '../lib/auth';
 import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
+import { useNotify } from '../lib/notify';
 
 const TREES_QUERY = graphql(`
   query Trees {
@@ -109,12 +111,25 @@ function NewTreeForm({ onDone }: { onDone: () => void }) {
 
 export function Trees() {
   const { t, lang } = useI18n();
+  const { confirm } = useNotify();
   const { user } = useAuth();
   const { data, loading, error } = useQuery(TREES_QUERY);
   const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(
+    null,
+  );
   const [updateTree] = useMutation(UPDATE_TREE, { refetchQueries: ['Trees'] });
   const [deleteTree] = useMutation(DELETE_TREE, { refetchQueries: ['Trees'] });
   const isAdmin = user?.role === 'ADMIN';
+
+  const submitRename = () => {
+    if (renaming?.name.trim()) {
+      void updateTree({
+        variables: { id: renaming.id, input: { name: renaming.name.trim() } },
+      });
+    }
+    setRenaming(null);
+  };
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 sm:px-6">
@@ -203,15 +218,7 @@ export function Trees() {
                       title={t('renameTree')}
                       onClick={(event) => {
                         event.preventDefault();
-                        const name = window.prompt(t('renameTree'), tree.name);
-                        if (name?.trim()) {
-                          void updateTree({
-                            variables: {
-                              id: tree.id,
-                              input: { name: name.trim() },
-                            },
-                          });
-                        }
+                        setRenaming({ id: tree.id, name: tree.name });
                       }}
                       className="rounded-lg px-1.5 py-1 text-sm text-stone-400 transition hover:bg-amber-100 hover:text-stone-700 dark:hover:bg-stone-800"
                     >
@@ -223,9 +230,13 @@ export function Trees() {
                       title={t('deleteTreeAction')}
                       onClick={(event) => {
                         event.preventDefault();
-                        if (window.confirm(t('confirmDeleteTree'))) {
-                          void deleteTree({ variables: { id: tree.id } });
-                        }
+                        void confirm(t('confirmDeleteTree'), {
+                          danger: true,
+                        }).then((ok) => {
+                          if (ok) {
+                            void deleteTree({ variables: { id: tree.id } });
+                          }
+                        });
                       }}
                       className="rounded-lg px-1.5 py-1 text-sm text-stone-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                     >
@@ -256,6 +267,26 @@ export function Trees() {
           ))}
         </div>
       )}
+
+      <Modal
+        open={renaming !== null}
+        title={t('renameTree')}
+        okText={t('save')}
+        cancelText={t('cancel')}
+        centered
+        onOk={submitRename}
+        onCancel={() => setRenaming(null)}
+      >
+        <Input
+          autoFocus
+          value={renaming?.name ?? ''}
+          maxLength={200}
+          onChange={(event) =>
+            setRenaming((r) => (r ? { ...r, name: event.target.value } : r))
+          }
+          onPressEnter={submitRename}
+        />
+      </Modal>
     </main>
   );
 }

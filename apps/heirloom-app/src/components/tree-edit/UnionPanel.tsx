@@ -5,6 +5,7 @@ import type { Pedigree, UnionType } from '../../generated/graphql';
 import { enumLabel, PEDIGREES, UNION_TYPES } from '../../lib/genealogy';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
+import { useNotify } from '../../lib/notify';
 import { EventList } from './EventList';
 import {
   ADD_CHILD,
@@ -44,6 +45,7 @@ export function UnionPanel({
   onDeleted(): void;
 }) {
   const { t, lang } = useI18n();
+  const { confirm } = useNotify();
   const { data } = useQuery(UNION_DETAIL, { variables: { id: unionId } });
   const [updateUnion] = useMutation(UPDATE_UNION, { refetchQueries: REFETCH });
   const [deleteUnion] = useMutation(DELETE_UNION, { refetchQueries: REFETCH });
@@ -251,11 +253,15 @@ export function UnionPanel({
         <button
           type="button"
           onClick={() => {
-            if (window.confirm(t('confirmDeleteUnion'))) {
-              void deleteUnion({ variables: { id: union.id } })
-                .then(onDeleted)
-                .catch(fail);
-            }
+            void confirm(t('confirmDeleteUnion'), { danger: true }).then(
+              (ok) => {
+                if (ok) {
+                  void deleteUnion({ variables: { id: union.id } })
+                    .then(onDeleted)
+                    .catch(fail);
+                }
+              },
+            );
           }}
           className="mt-5 w-full rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
         >

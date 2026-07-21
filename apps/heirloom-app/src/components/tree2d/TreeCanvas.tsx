@@ -2,6 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
+import { useNotify } from '../../lib/notify';
 import {
   CARD_H,
   CARD_W,
@@ -68,6 +69,7 @@ export function TreeCanvas({
   onRemovePersons: (ids: string[]) => Promise<void>;
 }) {
   const { t } = useI18n();
+  const { confirm } = useNotify();
   const { positions, move, commit, reset } = usePositions(treeId);
   const layout = useMemo(
     () => layoutTree(persons, unions, positions),
@@ -272,20 +274,23 @@ export function TreeCanvas({
     }
   };
 
-  const removeSelected = async () => {
+  const removeSelected = () => {
     const ids = [...selectedIds];
     if (!ids.length) return;
-    if (!window.confirm(t('confirmRemoveSelected').replace('{n}', String(ids.length)))) {
-      return;
-    }
-    setRemoving(true);
-    try {
-      await onRemovePersons(ids);
-      reset(ids);
-      setSelectedIds(new Set());
-    } finally {
-      setRemoving(false);
-    }
+    void confirm(
+      t('confirmRemoveSelected').replace('{n}', String(ids.length)),
+      { danger: true },
+    ).then(async (ok) => {
+      if (!ok) return;
+      setRemoving(true);
+      try {
+        await onRemovePersons(ids);
+        reset(ids);
+        setSelectedIds(new Set());
+      } finally {
+        setRemoving(false);
+      }
+    });
   };
 
   const toolButton = (active: boolean) =>
