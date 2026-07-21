@@ -9,7 +9,7 @@ interface Message {
   error?: boolean;
 }
 
-export function ChatPanel() {
+export function ChatPanel({ treeId }: { treeId?: string }) {
   const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -37,7 +37,7 @@ export function ChatPanel() {
 
     try {
       await streamChat(
-        { message, conversationId: conversationId.current },
+        { message, treeId, conversationId: conversationId.current },
         {
           onToken: (text) =>
             patchLast((last) => ({ ...last, content: last.content + text })),
@@ -71,18 +71,28 @@ export function ChatPanel() {
   return (
     <section
       aria-label={t('chatTitle')}
-      className="flex w-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900"
+      className="flex w-full flex-col overflow-hidden rounded-3xl bg-white shadow-xl shadow-amber-900/10 ring-1 ring-amber-900/10 dark:bg-stone-900 dark:shadow-black/30 dark:ring-stone-700/60"
     >
-      <div className="border-b border-stone-100 px-4 py-3 text-sm font-medium text-stone-500 sm:px-5 dark:border-stone-800 dark:text-stone-400">
-        {t('chatTitle')}
+      <div className="flex items-center gap-3 border-b border-amber-900/10 bg-gradient-to-r from-amber-50 to-orange-50/60 px-5 py-3.5 dark:border-stone-800 dark:from-stone-900 dark:to-stone-900">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-500 to-amber-700 text-base text-white shadow-sm">
+          ✦
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+            {t('chatTitle')}
+          </p>
+          <p className="truncate text-xs text-stone-500 dark:text-stone-400">
+            {t('chatSubtitle')}
+          </p>
+        </div>
       </div>
 
       <div
         ref={scrollRef}
-        className="flex h-72 flex-col gap-3 overflow-y-auto px-4 py-4 sm:h-80 sm:px-5"
+        className="flex h-72 flex-col gap-3 overflow-y-auto bg-gradient-to-b from-transparent to-amber-50/40 px-4 py-4 sm:h-80 sm:px-5 dark:to-stone-950/40"
       >
         {messages.length === 0 && (
-          <p className="m-auto max-w-sm text-center text-sm text-stone-400 dark:text-stone-500">
+          <p className="m-auto max-w-sm text-center text-sm leading-relaxed text-stone-400 dark:text-stone-500">
             {t('chatEmpty')}
           </p>
         )}
@@ -90,7 +100,7 @@ export function ChatPanel() {
           message.role === 'user' ? (
             <div
               key={i}
-              className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-stone-900 px-4 py-2.5 text-sm text-stone-50 dark:bg-stone-100 dark:text-stone-900"
+              className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-gradient-to-b from-amber-600 to-amber-700 px-4 py-2.5 text-sm text-white shadow-sm"
             >
               {message.content}
             </div>
@@ -101,7 +111,7 @@ export function ChatPanel() {
                   {message.actions!.map((action, j) => (
                     <span
                       key={j}
-                      className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                      className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                     >
                       ⚙ {action.tool}
                     </span>
@@ -109,10 +119,10 @@ export function ChatPanel() {
                 </div>
               )}
               <div
-                className={`whitespace-pre-wrap rounded-2xl rounded-bl-md border px-4 py-2.5 text-sm ${
+                className={`whitespace-pre-wrap rounded-2xl rounded-bl-md px-4 py-2.5 text-sm shadow-sm ${
                   message.error
-                    ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300'
-                    : 'border-stone-200 bg-stone-50 text-stone-800 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100'
+                    ? 'bg-red-50 text-red-800 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-900'
+                    : 'bg-white text-stone-700 ring-1 ring-stone-200/80 dark:bg-stone-800 dark:text-stone-100 dark:ring-stone-700'
                 }`}
               >
                 {message.content || (
@@ -128,37 +138,46 @@ export function ChatPanel() {
       </div>
 
       <form
-        className="flex items-end gap-2 border-t border-stone-100 p-3 sm:p-4 dark:border-stone-800"
+        className="border-t border-amber-900/10 p-3 sm:p-4 dark:border-stone-800"
         onSubmit={(event) => {
           event.preventDefault();
           void send();
         }}
       >
-        <textarea
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              void send();
-            }
-          }}
-          rows={1}
-          placeholder={t('chatPlaceholder')}
-          aria-label={t('chatPlaceholder')}
-          className="max-h-32 min-h-10 flex-1 resize-y rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 dark:placeholder:text-stone-600"
-        />
-        <button
-          type="submit"
-          disabled={busy || !input.trim()}
-          className="rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {busy ? t('thinking') : t('send')}
-        </button>
+        <div className="flex items-end gap-2 rounded-2xl bg-stone-100/80 p-1.5 ring-1 ring-transparent transition focus-within:bg-white focus-within:ring-amber-400/60 dark:bg-stone-800 dark:focus-within:bg-stone-950 dark:focus-within:ring-amber-500/40">
+          <textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void send();
+              }
+            }}
+            rows={1}
+            placeholder={t('chatPlaceholder')}
+            aria-label={t('chatPlaceholder')}
+            className="max-h-32 min-h-9 flex-1 resize-none bg-transparent px-3 py-2 text-sm text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-500"
+          />
+          <button
+            type="submit"
+            disabled={busy || !input.trim()}
+            aria-label={t('send')}
+            className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-amber-600 to-amber-700 text-white shadow-sm transition hover:from-amber-500 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            {busy ? (
+              <span className="size-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            ) : (
+              <svg viewBox="0 0 20 20" fill="currentColor" className="size-4">
+                <path d="M3.1 2.3a.75.75 0 0 0-1 .9l1.9 6.05a.75.75 0 0 0 .58.51l6.3 1.09c.28.05.28.45 0 .5l-6.3 1.1a.75.75 0 0 0-.58.5l-1.9 6.06a.75.75 0 0 0 1 .9l15.1-7.13a.75.75 0 0 0 0-1.35L3.1 2.3Z" />
+              </svg>
+            )}
+          </button>
+        </div>
+        <p className="mt-2 px-1 text-[11px] text-stone-400 dark:text-stone-600">
+          {t('chatHint')}
+        </p>
       </form>
-      <p className="px-4 pb-3 text-[11px] text-stone-400 sm:px-5 dark:text-stone-600">
-        {t('chatHint')}
-      </p>
     </section>
   );
 }

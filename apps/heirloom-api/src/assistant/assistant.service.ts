@@ -116,10 +116,11 @@ export class AssistantService {
       }
     }
 
+    // Anonymous conversations are not persisted (no memory before login)
     const userId = user?.id ?? null;
     const convId = conversationId ?? randomUUID();
     const messages: ChatTurn[] = [
-      ...(await this.store.get(convId, userId)),
+      ...(user ? await this.store.get(convId, userId) : []),
       { role: 'user', content: message },
     ];
 
@@ -134,10 +135,12 @@ export class AssistantService {
         ? await provider.runAgentStream(options, onEvent)
         : await provider.runAgent(options);
 
-    await this.store.set(convId, userId, [
-      ...messages,
-      { role: 'assistant', content: result.reply },
-    ]);
+    if (user) {
+      await this.store.set(convId, userId, [
+        ...messages,
+        { role: 'assistant', content: result.reply },
+      ]);
+    }
 
     return {
       reply: result.reply,
