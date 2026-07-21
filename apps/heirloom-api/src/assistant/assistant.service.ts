@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   Injectable,
   ServiceUnavailableException,
@@ -8,10 +9,15 @@ import {
   AssistantContext,
   AssistantToolsService,
 } from './assistant-tools.service';
+import { ConversationStore } from './conversation-store.service';
 import { ChatRequestDto } from './dto/chat.dto';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { OpenAiCompatProvider } from './providers/openai-compat.provider';
-import { LlmAgentProvider } from './providers/provider.interface';
+import {
+  AgentStreamEvent,
+  ChatTurn,
+  LlmAgentProvider,
+} from './providers/provider.interface';
 
 const SYSTEM_PROMPT = `You are the assistant of Heirloom, a self-hosted genealogy application.
 You help the user explore and edit ONE family tree through the provided tools.
@@ -23,7 +29,15 @@ Guidelines:
 - Dates: store the user's wording in dateValue using GEDCOM style ("12 JAN 1875", "ABT 1850") and set dateSort to an approximate ISO date when possible.
 - You cannot delete anything; tell the user deletions are done manually in the app.
 - After writing, briefly confirm what was recorded.
+- Keep replies short and conversational; no headers or long lists unless asked.
 - Always reply in the language of the user.`;
+
+export interface ChatResult {
+  reply: string;
+  actions: { tool: string; input: unknown; ok: boolean }[];
+  treeId: string | null;
+  conversationId: string;
+}
 
 @Injectable()
 export class AssistantService {
@@ -31,9 +45,24 @@ export class AssistantService {
     private readonly config: ConfigService,
     private readonly treesService: TreesService,
     private readonly toolsService: AssistantToolsService,
+    private readonly store: ConversationStore,
   ) {}
 
-  async chat({ treeId, messages }: ChatRequestDto) {
+  chat(request: ChatRequestDto): Promise<ChatResult> {
+    return this.run(request, undefined);
+  }
+
+  chatStream(
+    request: ChatRequestDto,
+    onEvent: (event: AgentStreamEvent) => void,
+  ): Promise<ChatResult> {
+    return this.run(request, onEvent);
+  }
+
+  private async run(
+    { message, treeId, conversationId }: ChatRequestDto,
+    onEvent?: (event: AgentStreamEvent) => void,
+  ): Promise<ChatResult> {
     const provider = this.buildProvider();
 
     let context: string;
@@ -44,20 +73,36 @@ export class AssistantService {
       context = `No family tree is selected yet. Start by listing the existing trees (list_trees) or creating one (create_tree), then pass its treeId to the other tools. Guide the user step by step: create the tree, then their first persons, unions and events.`;
     }
 
+    const convId = conversationId ?? randomUUID();
+    const messages: ChatTurn[] = [
+      ...this.store.get(convId),
+      { role: 'user', content: message },
+    ];
+
     const ctx: AssistantContext = {};
     const tools = this.toolsService.buildTools(treeId, ctx);
-
-    const result = await provider.runAgent({
+    const options = {
       system: `${SYSTEM_PROMPT}\n\n${context}`,
       messages,
       tools,
-    });
+    };
+
+    const result =
+      onEvent && provider.runAgentStream
+        ? await provider.runAgentStream(options, onEvent)
+        : await provider.runAgent(options);
+
+    this.store.set(convId, [
+      ...messages,
+      { role: 'assistant', content: result.reply },
+    ]);
 
     return {
       reply: result.reply,
       actions: result.actions,
       // The tree the conversation is (now) about, so the client can pin it
       treeId: treeId ?? ctx.createdTreeId ?? null,
+      conversationId: convId,
     };
   }
 
@@ -72,6 +117,7 @@ export class AssistantService {
     const provider = this.env('AI_PROVIDER');
     const apiKey = this.env('AI_API_KEY');
     const model = this.env('AI_MODEL');
+    const reasoningEffort = this.env('AI_REASONING_EFFORT');
 
     switch (provider) {
       case 'anthropic':
@@ -81,13 +127,14 @@ export class AssistantService {
           this.env('AI_BASE_URL') ?? 'https://api.openai.com/v1',
           apiKey,
           model ?? 'gpt-5-mini',
+          reasoningEffort,
         );
       case 'ollama':
         return new OpenAiCompatProvider(
-          this.env('AI_BASE_URL') ??
-            'http://localhost:11434/v1',
+          this.env('AI_BASE_URL') ?? 'http://localhost:11434/v1',
           apiKey,
           model ?? 'qwen3:4b',
+          reasoningEffort,
         );
       case 'llamacpp':
         return new OpenAiCompatProvider(
@@ -95,10 +142,11 @@ export class AssistantService {
           apiKey,
           // llama.cpp serves whatever model it was started with
           model ?? 'default',
+          reasoningEffort,
         );
       default:
         throw new ServiceUnavailableException(
-          'No AI provider configured. Set AI_PROVIDER to "anthropic", "openai" or "llamacpp" in the environment.',
+          'No AI provider configured. Set AI_PROVIDER to "anthropic", "openai", "ollama" or "llamacpp" in the environment.',
         );
     }
   }

@@ -32,8 +32,18 @@ export interface AgentRunOptions {
   maxIterations?: number;
 }
 
+// Incremental events emitted while the agent works
+export type AgentStreamEvent =
+  | { type: 'token'; text: string }
+  | { type: 'tool'; tool: string; ok: boolean };
+
 export interface LlmAgentProvider {
   runAgent(options: AgentRunOptions): Promise<AgentRunResult>;
+  // Optional: providers without native streaming fall back to runAgent
+  runAgentStream?(
+    options: AgentRunOptions,
+    onEvent: (event: AgentStreamEvent) => void,
+  ): Promise<AgentRunResult>;
 }
 
 export async function executeToolSafely(

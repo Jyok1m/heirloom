@@ -1,34 +1,17 @@
-import { Type } from 'class-transformer';
-import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  IsArray,
-  IsIn,
-  IsOptional,
-  IsUUID,
-  MaxLength,
-  ValidateNested,
-} from 'class-validator';
-
-export class ChatTurnDto {
-  @IsIn(['user', 'assistant'])
-  role!: 'user' | 'assistant';
-
-  @MaxLength(20_000)
-  content!: string;
-}
+import { IsOptional, IsUUID, Length } from 'class-validator';
 
 export class ChatRequestDto {
+  // The new user message; history is kept server-side per conversationId
+  @Length(1, 20_000)
+  message!: string;
+
   // Omit to let the assistant list/create trees and drive the onboarding
   @IsOptional()
   @IsUUID()
   treeId?: string;
 
-  // Full conversation history, last item being the new user message
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(100)
-  @ValidateNested({ each: true })
-  @Type(() => ChatTurnDto)
-  messages!: ChatTurnDto[];
+  // Returned by the previous response; omit to start a new conversation
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
 }

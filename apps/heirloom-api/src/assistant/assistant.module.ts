@@ -6,10 +6,11 @@ import { TreesModule } from '../trees/trees.module';
 import { AssistantController } from './assistant.controller';
 import { AssistantToolsService } from './assistant-tools.service';
 import { AssistantService } from './assistant.service';
+import { ConversationStore } from './conversation-store.service';
 
 @Module({
   imports: [TreesModule, PersonsModule, RelationshipsModule, EventsModule],
   controllers: [AssistantController],
-  providers: [AssistantService, AssistantToolsService],
+  providers: [AssistantService, AssistantToolsService, ConversationStore],
 })
 export class AssistantModule {}
