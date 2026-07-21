@@ -1,6 +1,8 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  // The NestJS build emits CommonJS; the default ESM client breaks at runtime
+  moduleFormat = "cjs"
 }
 
 datasource db {

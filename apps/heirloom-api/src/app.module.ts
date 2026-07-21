@@ -1,6 +1,11 @@
 import { join } from 'node:path';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { GraphQLModule } from '@nestjs/graphql';
+import { PrismaModule } from './prisma/prisma.module';
+import { TreesModule } from './trees/trees.module';
+import './graphql/enums';
 
 @Module({
   imports: [
@@ -10,6 +15,15 @@ import { ConfigModule } from '@nestjs/config';
       envFilePath: join(__dirname, '../../../.env'),
       expandVariables: true,
     }),
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      // Schema is generated from the code-first decorators; the file is
+      // consumed by the frontend GraphQL codegen (__dirname = dist/ at runtime).
+      autoSchemaFile: join(__dirname, '../schema.gql'),
+      sortSchema: true,
+    }),
+    PrismaModule,
+    TreesModule,
   ],
 })
 export class AppModule {}
