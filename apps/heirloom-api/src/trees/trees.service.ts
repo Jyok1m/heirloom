@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { rethrowAsNotFound } from '../common/prisma-errors';
+import { MediaStorageService } from '../media/media-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTreeInput, UpdateTreeInput } from './dto/tree.inputs';
 
 @Injectable()
 export class TreesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mediaStorage: MediaStorageService,
+  ) {}
 
   findAll() {
     return this.prisma.tree.findMany({ orderBy: { createdAt: 'asc' } });
@@ -31,7 +35,10 @@ export class TreesService {
 
   async delete(id: string) {
     try {
-      return await this.prisma.tree.delete({ where: { id } });
+      const tree = await this.prisma.tree.delete({ where: { id } });
+      // Media rows are cascade-deleted with the tree; drop their files too
+      await this.mediaStorage.removeTreeDir(id);
+      return tree;
     } catch (error) {
       rethrowAsNotFound(error, 'Tree', id);
     }

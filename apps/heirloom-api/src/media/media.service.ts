@@ -1,19 +1,69 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { rethrowAsNotFound } from '../common/prisma-errors';
+import { MediaType } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateMediaInput,
   LinkMediaInput,
   UpdateMediaInput,
 } from './dto/media.inputs';
+import { UploadMediaDto } from './dto/upload-media.dto';
+import { MediaStorageService } from './media-storage.service';
+
+function mediaTypeFromMime(mime: string): MediaType {
+  if (mime.startsWith('image/')) return MediaType.IMAGE;
+  if (mime.startsWith('video/')) return MediaType.VIDEO;
+  if (mime.startsWith('audio/')) return MediaType.AUDIO;
+  return MediaType.DOCUMENT;
+}
 
 @Injectable()
 export class MediaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: MediaStorageService,
+  ) {}
+
+  async createFromUpload(file: Express.Multer.File, dto: UploadMediaDto) {
+    const tree = await this.prisma.tree.findUnique({
+      where: { id: dto.treeId },
+      select: { id: true },
+    });
+    if (!tree) {
+      await this.storage.discardTmp(file.path);
+      throw new NotFoundException(`Tree ${dto.treeId} not found`);
+    }
+
+    const id = randomUUID();
+    const filePath = await this.storage.store(
+      file.path,
+      dto.treeId,
+      id,
+      file.originalname,
+    );
+    try {
+      return await this.prisma.media.create({
+        data: {
+          id,
+          treeId: dto.treeId,
+          type: mediaTypeFromMime(file.mimetype),
+          filePath,
+          mimeType: file.mimetype,
+          title: dto.title,
+          notes: dto.notes,
+        },
+      });
+    } catch (error) {
+      // The record is the source of truth: no row, no file
+      await this.storage.remove(filePath);
+      throw error;
+    }
+  }
 
   findAll(treeId: string) {
     return this.prisma.media.findMany({
@@ -48,7 +98,9 @@ export class MediaService {
 
   async delete(id: string) {
     try {
-      return await this.prisma.media.delete({ where: { id } });
+      const media = await this.prisma.media.delete({ where: { id } });
+      await this.storage.remove(media.filePath);
+      return media;
     } catch (error) {
       rethrowAsNotFound(error, 'Media', id);
     }
