@@ -3,8 +3,8 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { inputClass, primaryButtonClass } from '../components/forms';
 import { MembersPanel } from '../components/MembersPanel';
-import { layoutTree, type TreePerson } from '../components/tree3d/layout';
-import { TreeScene } from '../components/tree3d/TreeScene';
+import { TreeCanvas } from '../components/tree2d/TreeCanvas';
+import type { TreePerson, TreeUnion } from '../components/tree2d/layout';
 import { graphql } from '../generated';
 import { useAuth } from '../lib/auth';
 import { useI18n, type TranslationKey } from '../lib/i18n';
@@ -190,17 +190,15 @@ export function TreeView() {
   const [addChild] = useMutation(ADD_CHILD, { refetchQueries: REFETCH });
 
   const tree = data?.tree;
-  const layout = useMemo(() => {
-    if (!tree) return null;
-    return layoutTree(
-      tree.persons as TreePerson[],
-      tree.unions.map((union) => ({
+  const treeUnions = useMemo<TreeUnion[]>(
+    () =>
+      tree?.unions.map((union) => ({
         id: union.id,
         partnerIds: union.partners.map((p) => p.id),
         childIds: union.children.map((c) => c.person.id),
-      })),
-    );
-  }, [tree]);
+      })) ?? [],
+    [tree],
+  );
 
   const selected = tree?.persons.find((p) => p.id === selectedId) ?? null;
   const selectedUnions =
@@ -217,19 +215,19 @@ export function TreeView() {
 
   return (
     <main className="relative flex-1">
-      <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3">
         <Link
           to="/trees"
-          className="rounded-full bg-black/30 px-3.5 py-1.5 text-sm text-amber-100 backdrop-blur transition hover:bg-black/50"
+          className="pointer-events-auto rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/85 dark:text-stone-300 dark:ring-stone-700"
         >
           ← {t('backToTrees')}
         </Link>
-        <h1 className="font-display text-lg font-semibold text-amber-50 drop-shadow">
+        <h1 className="font-display text-lg font-semibold text-stone-800 dark:text-stone-100">
           {tree?.name ?? '…'}
         </h1>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="pointer-events-auto ml-auto flex items-center gap-2">
           {error && (
-            <span className="rounded-full bg-red-900/70 px-3 py-1 text-xs text-red-100 backdrop-blur">
+            <span className="rounded-full bg-red-100 px-3 py-1 text-xs text-red-800 shadow-sm dark:bg-red-950 dark:text-red-300">
               {error}
             </span>
           )}
@@ -242,7 +240,7 @@ export function TreeView() {
                 setAdding(false);
                 setSelectedId(null);
               }}
-              className="rounded-full bg-black/30 px-3.5 py-1.5 text-sm text-amber-100 backdrop-blur transition hover:bg-black/50"
+              className="rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/85 dark:text-stone-300 dark:ring-stone-700"
             >
               👥 {t('membersTitle')}
             </button>
@@ -262,33 +260,32 @@ export function TreeView() {
         </div>
       </div>
 
-      <div className="h-[calc(100dvh-3.5rem)] w-full">
-        {layout &&
-          (layout.nodes.length > 0 ? (
-            <TreeScene
-              layout={layout}
-              selectedId={selectedId}
-              onSelect={(value) => {
-                setSelectedId(value);
-                setAdding(false);
-                setError(null);
-              }}
-            />
-          ) : (
-            <div className="grid h-full place-items-center bg-[#191410] px-6">
-              <p className="max-w-sm text-center text-sm leading-relaxed text-amber-100/70">
+      <div className="h-[calc(100dvh-3.5rem)] w-full bg-[#faf7f0] bg-[radial-gradient(circle_at_1px_1px,rgba(120,113,108,0.12)_1px,transparent_0)] [background-size:22px_22px] dark:bg-stone-950 dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.05)_1px,transparent_0)]">
+        {loading ? (
+          <div className="grid h-full place-items-center">
+            <span className="size-8 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
+          </div>
+        ) : tree && tree.persons.length > 0 ? (
+          <TreeCanvas
+            persons={tree.persons as TreePerson[]}
+            unions={treeUnions}
+            selectedId={selectedId}
+            onSelect={(value) => {
+              setSelectedId(value);
+              setAdding(false);
+              setError(null);
+            }}
+          />
+        ) : (
+          tree && (
+            <div className="grid h-full place-items-center px-6">
+              <p className="max-w-sm text-center text-sm leading-relaxed text-stone-500 dark:text-stone-400">
                 🌱 {t('emptyTree')}
               </p>
             </div>
-          ))}
-        {loading && (
-          <div className="grid h-full place-items-center bg-[#191410]">
-            <span className="size-8 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
-          </div>
+          )
         )}
       </div>
-
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_60%,rgba(10,6,2,0.55))]" />
 
       {(adding || selected || showMembers) && (
         <aside className="absolute bottom-4 right-4 top-16 z-10 w-[320px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
