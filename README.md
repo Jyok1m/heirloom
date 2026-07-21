@@ -43,4 +43,18 @@ In production, apply migrations with `pnpm --filter heirloom-api db:deploy` (`pr
 
 ## License
 
-TBD
+Copyright (C) 2026 Joachim Jasmin
+
+Heirloom is free software: you can redistribute it and/or modify it under the
+terms of the **GNU Affero General Public License, version 3** (AGPL-3.0-only) as
+published by the Free Software Foundation. See the [LICENSE](LICENSE) file for
+the full text.
+
+This program is distributed in the hope that it will be useful, but **WITHOUT
+ANY WARRANTY**; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+details.
+
+Because Heirloom is AGPL-licensed, if you run a modified version as a network
+service (self-hosted for others), you must make your modified source available
+to its users.

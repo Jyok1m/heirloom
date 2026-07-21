@@ -1,6 +1,8 @@
 {
   "name": "heirloom-api",
   "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Joachim Jasmin",
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",

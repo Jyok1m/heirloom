@@ -1,6 +1,8 @@
 {
   "name": "heirloom",
   "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Joachim Jasmin",
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "dev:api": "pnpm --filter heirloom-api dev",

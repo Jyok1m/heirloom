@@ -1,6 +1,8 @@
 {
   "name": "heirloom-app",
   "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Joachim Jasmin",
   "type": "module",
   "scripts": {
     "dev": "vite",
