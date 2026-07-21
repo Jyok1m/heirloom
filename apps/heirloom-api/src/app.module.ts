@@ -8,6 +8,7 @@ import { EventsModule } from './events/events.module';
 import { PersonsModule } from './persons/persons.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RelationshipsModule } from './relationships/relationships.module';
+import { SourcesModule } from './sources/sources.module';
 import { TreesModule } from './trees/trees.module';
 import './graphql/enums';
 
@@ -32,6 +33,7 @@ import './graphql/enums';
     PersonsModule,
     RelationshipsModule,
     EventsModule,
+    SourcesModule,
   ],
 })
 export class AppModule {}

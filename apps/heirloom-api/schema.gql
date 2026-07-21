@@ -2,6 +2,23 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type Citation {
+  event: Event!
+  eventId: ID!
+  id: ID!
+  page: String
+  quality: Int
+  source: Source!
+  sourceId: ID!
+}
+
+input CreateCitationInput {
+  eventId: ID!
+  page: String
+  quality: Int
+  sourceId: ID!
+}
+
 input CreateEventInput {
   dateSort: DateTime
   dateValue: String
@@ -24,6 +41,15 @@ input CreatePersonInput {
   treeId: ID!
 }
 
+input CreateSourceInput {
+  author: String
+  notes: String
+  publication: String
+  repository: String
+  title: String!
+  treeId: ID!
+}
+
 input CreateTreeInput {
   description: String
   name: String!
@@ -41,6 +67,7 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Event {
+  citations: [Citation!]!
   createdAt: DateTime!
   dateSort: DateTime
   dateValue: String
@@ -79,19 +106,25 @@ enum EventType {
 type Mutation {
   addUnionChild(input: UnionChildInput!): Union!
   addUnionPartner(personId: ID!, unionId: ID!): Union!
+  createCitation(input: CreateCitationInput!): Citation!
   createEvent(input: CreateEventInput!): Event!
   createPerson(input: CreatePersonInput!): Person!
+  createSource(input: CreateSourceInput!): Source!
   createTree(input: CreateTreeInput!): Tree!
   createUnion(input: CreateUnionInput!): Union!
+  deleteCitation(id: ID!): Citation!
   deleteEvent(id: ID!): Event!
   deletePerson(id: ID!): Person!
+  deleteSource(id: ID!): Source!
   deleteTree(id: ID!): Tree!
   deleteUnion(id: ID!): Union!
   removeUnionChild(personId: ID!, unionId: ID!): Union!
   removeUnionPartner(personId: ID!, unionId: ID!): Union!
   setUnionChildPedigree(pedigree: Pedigree!, personId: ID!, unionId: ID!): Union!
+  updateCitation(id: ID!, input: UpdateCitationInput!): Citation!
   updateEvent(id: ID!, input: UpdateEventInput!): Event!
   updatePerson(id: ID!, input: UpdatePersonInput!): Person!
+  updateSource(id: ID!, input: UpdateSourceInput!): Source!
   updateTree(id: ID!, input: UpdateTreeInput!): Tree!
   updateUnion(id: ID!, input: UpdateUnionInput!): Union!
 }
@@ -125,6 +158,8 @@ type Query {
   event(id: ID!): Event!
   person(id: ID!): Person!
   persons(skip: Int! = 0, take: Int! = 50, treeId: ID!): [Person!]!
+  source(id: ID!): Source!
+  sources(treeId: ID!): [Source!]!
   tree(id: ID!): Tree!
   trees: [Tree!]!
   union(id: ID!): Union!
@@ -138,12 +173,27 @@ enum Sex {
   UNKNOWN
 }
 
+type Source {
+  author: String
+  citations: [Citation!]!
+  createdAt: DateTime!
+  gedcomId: String
+  id: ID!
+  notes: String
+  publication: String
+  repository: String
+  title: String!
+  treeId: ID!
+  updatedAt: DateTime!
+}
+
 type Tree {
   createdAt: DateTime!
   description: String
   id: ID!
   name: String!
   persons: [Person!]!
+  sources: [Source!]!
   unions: [Union!]!
   updatedAt: DateTime!
 }
@@ -181,6 +231,11 @@ enum UnionType {
   UNKNOWN
 }
 
+input UpdateCitationInput {
+  page: String
+  quality: Int
+}
+
 input UpdateEventInput {
   dateSort: DateTime
   dateValue: String
@@ -198,6 +253,14 @@ input UpdatePersonInput {
   nickname: String
   notes: String
   sex: Sex
+}
+
+input UpdateSourceInput {
+  author: String
+  notes: String
+  publication: String
+  repository: String
+  title: String
 }
 
 input UpdateTreeInput {

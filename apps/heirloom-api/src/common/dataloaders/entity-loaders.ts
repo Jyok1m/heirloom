@@ -2,7 +2,9 @@ import { Injectable, Scope } from '@nestjs/common';
 import DataLoader from 'dataloader';
 import type {
   ChildInUnionModel as ChildInUnion,
+  CitationModel as Citation,
   EventModel as Event,
+  SourceModel as Source,
   PersonModel as Person,
   UnionModel as Union,
   UnionPartnerModel as UnionPartner,
@@ -88,6 +90,31 @@ export class EntityLoaders {
       this.prisma.childInUnion.findMany({
         where: { unionId: { in: unionIds } },
       }),
+  );
+
+  readonly eventById = idLoader<Event>((ids) =>
+    this.prisma.event.findMany({ where: { id: { in: ids } } }),
+  );
+
+  readonly sourceById = idLoader<Source>((ids) =>
+    this.prisma.source.findMany({ where: { id: { in: ids } } }),
+  );
+
+  readonly sourcesByTreeId = groupLoader<Source>('treeId', (treeIds) =>
+    this.prisma.source.findMany({
+      where: { treeId: { in: treeIds } },
+      orderBy: { title: 'asc' },
+    }),
+  );
+
+  readonly citationsByEventId = groupLoader<Citation>('eventId', (eventIds) =>
+    this.prisma.citation.findMany({ where: { eventId: { in: eventIds } } }),
+  );
+
+  readonly citationsBySourceId = groupLoader<Citation>(
+    'sourceId',
+    (sourceIds) =>
+      this.prisma.citation.findMany({ where: { sourceId: { in: sourceIds } } }),
   );
 
   readonly eventsByPersonId = groupLoader<Event>('personId', (personIds) =>
