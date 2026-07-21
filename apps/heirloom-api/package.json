@@ -12,6 +12,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
     "@apollo/server": "^5.5.1",
     "@as-integrations/express5": "^1.1.2",
     "@nestjs/apollo": "^13.4.2",

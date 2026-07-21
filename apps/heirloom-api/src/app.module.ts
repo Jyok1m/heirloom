@@ -3,6 +3,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
+import { AssistantModule } from './assistant/assistant.module';
 import { DataloadersModule } from './common/dataloaders/dataloaders.module';
 import { EventsModule } from './events/events.module';
 import { MediaModule } from './media/media.module';
@@ -36,6 +37,7 @@ import './graphql/enums';
     EventsModule,
     SourcesModule,
     MediaModule,
+    AssistantModule,
   ],
 })
 export class AppModule {}
