@@ -3,6 +3,8 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
+import { DataloadersModule } from './common/dataloaders/dataloaders.module';
+import { PersonsModule } from './persons/persons.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TreesModule } from './trees/trees.module';
 import './graphql/enums';
@@ -23,7 +25,9 @@ import './graphql/enums';
       sortSchema: true,
     }),
     PrismaModule,
+    DataloadersModule,
     TreesModule,
+    PersonsModule,
   ],
 })
 export class AppModule {}
