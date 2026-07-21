@@ -22,6 +22,16 @@ pipeline {
         timeout(time: 40, unit: 'MINUTES')
     }
 
+    parameters {
+        // "Build with Parameters" -> force a rebuild even when no app files
+        // changed (first run, manual redeploy, or a CI-only change).
+        booleanParam(
+            name: 'FORCE_BUILD',
+            defaultValue: false,
+            description: 'Build & deploy both apps regardless of change detection',
+        )
+    }
+
     environment {
         REGISTRY   = 'jyok1m'
         API_IMAGE  = "${REGISTRY}/heirloom-api"
@@ -57,7 +67,11 @@ pipeline {
                     ).trim()
 
                     def files
-                    if (prev) {
+                    if (params.FORCE_BUILD) {
+                        // Manual override: rebuild everything.
+                        files = ['__ALL__']
+                        echo 'FORCE_BUILD set — building both apps.'
+                    } else if (prev) {
                         files = sh(
                             script: "git diff --name-only ${prev} HEAD",
                             returnStdout: true,
