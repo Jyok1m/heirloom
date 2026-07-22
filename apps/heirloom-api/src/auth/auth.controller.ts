@@ -13,6 +13,7 @@ import { TreeRole } from '../generated/prisma/enums';
 import { AuthService } from './auth.service';
 import { CurrentUser, Public, Roles } from './decorators';
 import {
+  AcceptInvitationDto,
   CreateAccountDto,
   CreateInvitationDto,
   LoginDto,
@@ -143,21 +144,23 @@ export class AuthController {
   async acceptInvitation(
     @Param('token') token: string,
     @CurrentUser() user: UserModel | undefined,
-    @Body() body: Partial<CreateAccountDto>,
+    @Body() body: AcceptInvitationDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.acceptInvitation(
-      token,
-      user,
-      body.email && body.password
-        ? {
-            email: body.email,
-            password: body.password,
-            displayName: body.displayName,
-          }
-        : undefined,
-    );
-    if (result.token) res.cookie(COOKIE, result.token, COOKIE_OPTS);
+    const { token: sessionToken, ...result } =
+      await this.authService.acceptInvitation(
+        token,
+        user,
+        body.email && body.password
+          ? {
+              email: body.email,
+              password: body.password,
+              displayName: body.displayName,
+            }
+          : undefined,
+      );
+    // Carry the session only in the httpOnly cookie, never in the JSON body.
+    if (sessionToken) res.cookie(COOKIE, sessionToken, COOKIE_OPTS);
     return result;
   }
 }

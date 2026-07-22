@@ -67,6 +67,7 @@ export function TreeCanvas({
   commit,
   reset,
   resetAll,
+  readOnly = false,
 }: {
   persons: TreePerson[];
   unions: TreeUnion[];
@@ -81,6 +82,8 @@ export function TreeCanvas({
   commit: () => void;
   reset: (ids: string[]) => void;
   resetAll: () => void;
+  // Public share view: pan/zoom + tap-to-inspect only, no editing gestures.
+  readOnly?: boolean;
 }) {
   const { t } = useI18n();
   const { confirm } = useNotify();
@@ -190,7 +193,7 @@ export function TreeCanvas({
       return;
     }
 
-    if (mode === 'select' || event.shiftKey) {
+    if (!readOnly && (mode === 'select' || event.shiftKey)) {
       interaction.current = { kind: 'marquee', sx, sy };
       setMarquee({ x: sx, y: sy, w: 0, h: 0 });
     } else {
@@ -302,7 +305,8 @@ export function TreeCanvas({
       moved: false,
       // Drag is desktop-only: touch never moves cards (avoids the mobile
       // gesture conflicts); a touch still taps to select and pans the canvas.
-      draggable: event.pointerType !== 'touch',
+      // The read-only share view never drags — cards only tap to inspect.
+      draggable: !readOnly && event.pointerType !== 'touch',
     };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -564,25 +568,29 @@ export function TreeCanvas({
         >
           <FontAwesomeIcon icon={icons.pan} />
         </button>
-        <button
-          type="button"
-          onClick={() => setMode('select')}
-          className={toolButton(mode === 'select')}
-          title={t('selectMode')}
-          aria-label={t('selectMode')}
-        >
-          <FontAwesomeIcon icon={icons.marquee} />
-        </button>
-        <span className="mx-0.5 h-5 w-px bg-stone-200 dark:bg-stone-700" />
-        <button
-          type="button"
-          onClick={autoArrange}
-          className={toolButton(false)}
-          title={t('autoArrange')}
-          aria-label={t('autoArrange')}
-        >
-          <FontAwesomeIcon icon={icons.sitemap} />
-        </button>
+        {!readOnly && (
+          <>
+            <button
+              type="button"
+              onClick={() => setMode('select')}
+              className={toolButton(mode === 'select')}
+              title={t('selectMode')}
+              aria-label={t('selectMode')}
+            >
+              <FontAwesomeIcon icon={icons.marquee} />
+            </button>
+            <span className="mx-0.5 h-5 w-px bg-stone-200 dark:bg-stone-700" />
+            <button
+              type="button"
+              onClick={autoArrange}
+              className={toolButton(false)}
+              title={t('autoArrange')}
+              aria-label={t('autoArrange')}
+            >
+              <FontAwesomeIcon icon={icons.sitemap} />
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={fit}

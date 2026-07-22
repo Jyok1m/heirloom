@@ -117,8 +117,19 @@ export class AuthService {
       );
     }
 
-    await this.prisma.$transaction([
-      this.prisma.treeMembership.upsert({
+    // Claim the single-use invitation atomically: the `usedAt: null` predicate
+    // in updateMany lets only one of two concurrent accepts win, and the
+    // membership is created in the same transaction so a lost race grants
+    // nothing. getInvitation() above only guards the common (non-racing) case.
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.invitation.updateMany({
+        where: { id: invitation.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException('Invitation already used');
+      }
+      await tx.treeMembership.upsert({
         where: {
           userId_treeId: { userId: user.id, treeId: invitation.treeId },
         },
@@ -128,12 +139,8 @@ export class AuthService {
           role: invitation.role,
         },
         update: { role: invitation.role },
-      }),
-      this.prisma.invitation.update({
-        where: { id: invitation.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+      });
+    });
 
     return {
       token: currentUser ? undefined : this.jwt.sign({ sub: user.id }),

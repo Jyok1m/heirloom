@@ -30,6 +30,24 @@ export class CreateAccountDto {
   displayName?: string;
 }
 
+// Anonymous branch: all fields present and validated (email/password create
+// the account). Logged-in branch: empty body, so every field is optional.
+// A concrete class (not Partial<CreateAccountDto>, which reflects to Object and
+// silently skips the global ValidationPipe) is required for validation to run.
+export class AcceptInvitationDto {
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @Length(8, 200)
+  password?: string;
+
+  @IsOptional()
+  @MaxLength(200)
+  displayName?: string;
+}
+
 export class CreateInvitationDto {
   @IsUUID()
   treeId!: string;

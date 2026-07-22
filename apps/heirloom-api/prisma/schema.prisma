@@ -88,6 +88,9 @@ model Tree {
   id          String   @id @default(uuid())
   name        String
   description String?
+  // Anonymous read-only share link ("anyone with the link can view").
+  // null = public sharing disabled; rotating the token revokes old links.
+  publicShareToken String? @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

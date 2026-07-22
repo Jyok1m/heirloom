@@ -15,12 +15,20 @@ export interface AuthUser {
   role: 'ADMIN' | 'MEMBER';
 }
 
+export type TreeRole = 'VIEWER' | 'CONTRIBUTOR';
+
 interface AuthValue {
   user: AuthUser | null;
   loading: boolean;
   login(email: string, password: string): Promise<void>;
   signup(email: string, password: string, displayName?: string): Promise<void>;
   logout(): Promise<void>;
+  // Accept an invitation. Anonymous visitors pass account details to create a
+  // MEMBER account; logged-in users pass nothing and just gain the membership.
+  acceptInvitation(
+    token: string,
+    account?: { email: string; password: string; displayName?: string },
+  ): Promise<{ treeId: string; role: TreeRole }>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -103,9 +111,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const acceptInvitation = useCallback<AuthValue['acceptInvitation']>(
+    async (token, account) => {
+      const data = (await post(
+        `/api/auth/invitations/${token}/accept`,
+        account ?? {},
+      )) as { user: AuthUser; treeId: string; role: TreeRole };
+      setUser(data.user);
+      return { treeId: data.treeId, role: data.role };
+    },
+    [],
+  );
+
   const value = useMemo<AuthValue>(
-    () => ({ user, loading, login, signup, logout }),
-    [user, loading, login, signup, logout],
+    () => ({ user, loading, login, signup, logout, acceptInvitation }),
+    [user, loading, login, signup, logout, acceptInvitation],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

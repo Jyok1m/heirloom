@@ -15,8 +15,10 @@ import { apolloClient } from './lib/apollo';
 import { AuthProvider, useAuth } from './lib/auth';
 import { useI18n } from './lib/i18n';
 import { ThemeProvider, useTheme } from './lib/theme';
+import { InviteAccept } from './pages/InviteAccept';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
+import { PublicTreeView } from './pages/PublicTreeView';
 import { Signup } from './pages/Signup';
 import { Trees } from './pages/Trees';
 import { TreeView } from './pages/TreeView';
@@ -32,7 +34,8 @@ function Shell() {
   const { t } = useI18n();
   const { user } = useAuth();
   // The tree canvas is full-height; the footer would overlap/scroll it.
-  const onCanvas = useLocation().pathname.startsWith('/trees/');
+  const path = useLocation().pathname;
+  const onCanvas = path.startsWith('/trees/') || path.startsWith('/view/');
   return (
     <div className="flex min-h-dvh flex-col bg-[#faf7f0] text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100">
       <Header />
@@ -41,6 +44,8 @@ function Shell() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/invite/:token" element={<InviteAccept />} />
+          <Route path="/view/:token" element={<PublicTreeView />} />
           <Route
             path="/trees"
             element={

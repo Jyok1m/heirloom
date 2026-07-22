@@ -151,6 +151,28 @@ const translations = {
     treeDescLabel: 'Description (optional)',
     createAction: 'Create',
     cancel: 'Cancel',
+    // Sharing & invitations
+    inviteTitle: "You're invited",
+    inviteContributorSub: 'You can view and edit this family tree.',
+    inviteViewerSub: 'You can view this family tree.',
+    inviteInvalid: 'This invitation link is invalid or has expired.',
+    inviteJoinButton: 'Join the tree',
+    inviteLoggedInAs: 'Signed in as',
+    backHome: 'Back to home',
+    publicViewBadge: 'Read-only',
+    publicTreeInvalid: 'This shared link is invalid or has been disabled.',
+    publicLinkTitle: 'Public view link',
+    publicLinkHint:
+      'Anyone with this link can view the tree (read-only), no account needed.',
+    enableShare: 'Enable public link',
+    disableShare: 'Disable',
+    regenerate: 'Regenerate',
+    confirmRegenerateShare:
+      'Generate a new link? The current one will stop working.',
+    confirmDisableShare:
+      'Disable the public link? Anyone using it will lose access.',
+    inviteContributor: 'Invite a contributor',
+    contributorInviteHint: 'They create an account and can add to and edit the tree.',
   },
   fr: {
     tagline: 'Votre histoire familiale, sur votre propre serveur.',
@@ -294,6 +316,29 @@ const translations = {
     treeDescLabel: 'Description (facultatif)',
     createAction: 'Créer',
     cancel: 'Annuler',
+    // Partage & invitations
+    inviteTitle: 'Vous êtes invité·e',
+    inviteContributorSub: 'Vous pourrez consulter et modifier cet arbre.',
+    inviteViewerSub: 'Vous pourrez consulter cet arbre.',
+    inviteInvalid: 'Ce lien d’invitation est invalide ou a expiré.',
+    inviteJoinButton: 'Rejoindre l’arbre',
+    inviteLoggedInAs: 'Connecté·e en tant que',
+    backHome: 'Retour à l’accueil',
+    publicViewBadge: 'Lecture seule',
+    publicTreeInvalid: 'Ce lien de partage est invalide ou a été désactivé.',
+    publicLinkTitle: 'Lien de visualisation public',
+    publicLinkHint:
+      'Toute personne disposant du lien peut consulter l’arbre (lecture seule), sans compte.',
+    enableShare: 'Activer le lien public',
+    disableShare: 'Désactiver',
+    regenerate: 'Régénérer',
+    confirmRegenerateShare:
+      'Générer un nouveau lien ? L’ancien cessera de fonctionner.',
+    confirmDisableShare:
+      'Désactiver le lien public ? Les personnes qui l’utilisent perdront l’accès.',
+    inviteContributor: 'Inviter un contributeur',
+    contributorInviteHint:
+      'La personne crée un compte et peut enrichir et modifier l’arbre.',
   },
 } as const;
 
