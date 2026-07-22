@@ -102,27 +102,48 @@ export function layoutTree(
   unions: TreeUnion[],
   overrides: PositionOverrides = new Map(),
 ): TreeLayout {
+  // Persons that appear as a child of some union have ancestry in the tree.
+  const hasParents = new Set<string>();
+  const parentsOf = new Map<string, string[]>();
+  for (const union of unions) {
+    for (const childId of union.childIds) {
+      hasParents.add(childId);
+      const list = parentsOf.get(childId) ?? [];
+      list.push(...union.partnerIds);
+      parentsOf.set(childId, list);
+    }
+  }
+
   const generation = new Map<string, number>(
     persons.map((person) => [person.id, 0]),
   );
 
-  // Fixed-point: partners share a generation, children sit one below
+  // Generation = ancestry depth: a child sits one row below its parents, so
+  // siblings — children of the same union — ALWAYS share a generation. A person
+  // who has parents is never moved by marriage (their sibling row stays intact);
+  // only married-in partners (no parents of their own) are pulled onto their
+  // spouse's row. Both rules only ever push a row down, so this converges.
   for (let i = 0; i <= persons.length + 1; i++) {
     let changed = false;
+    // Children one row below their parents.
+    for (const person of persons) {
+      const parents = parentsOf.get(person.id);
+      if (!parents || parents.length === 0) continue;
+      const g = Math.max(...parents.map((id) => generation.get(id) ?? 0)) + 1;
+      if ((generation.get(person.id) ?? 0) < g) {
+        generation.set(person.id, g);
+        changed = true;
+      }
+    }
+    // Align married-in partners (only) onto the couple's row.
     for (const union of unions) {
-      const partnerGen = Math.max(
+      const g = Math.max(
         0,
         ...union.partnerIds.map((id) => generation.get(id) ?? 0),
       );
       for (const id of union.partnerIds) {
-        if (generation.get(id) !== partnerGen) {
-          generation.set(id, partnerGen);
-          changed = true;
-        }
-      }
-      for (const id of union.childIds) {
-        if ((generation.get(id) ?? 0) < partnerGen + 1) {
-          generation.set(id, partnerGen + 1);
+        if (!hasParents.has(id) && (generation.get(id) ?? 0) < g) {
+          generation.set(id, g);
           changed = true;
         }
       }
