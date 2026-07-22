@@ -66,6 +66,16 @@ export function usePositions(treeId: string) {
     });
   }, [treeId]);
 
+  // Drop every manual position → the whole tree snaps back to the automatic
+  // top-down generational layout.
+  const resetAll = useCallback(() => {
+    setPositions(() => {
+      const next: PositionOverrides = new Map();
+      save(treeId, next);
+      return next;
+    });
+  }, [treeId]);
+
   // Drop overrides for removed persons and re-fit them into the auto-layout
   const reset = useCallback(
     (ids: string[]) => {
@@ -79,5 +89,5 @@ export function usePositions(treeId: string) {
     [treeId],
   );
 
-  return { positions, move, place, commit, reset };
+  return { positions, move, place, commit, reset, resetAll };
 }

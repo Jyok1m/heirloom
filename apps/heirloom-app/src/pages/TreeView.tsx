@@ -261,6 +261,7 @@ export function TreeView() {
             move={pos.move}
             commit={pos.commit}
             reset={pos.reset}
+            resetAll={pos.resetAll}
             onSelect={(value) =>
               setPanel(value ? { kind: 'person', id: value } : null)
             }

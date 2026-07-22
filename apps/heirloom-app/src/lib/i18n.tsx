@@ -135,6 +135,9 @@ const translations = {
     moveMode: 'Rearrange cards',
     selectMode: 'Select (box)',
     recenter: 'Recenter',
+    autoArrange: 'Auto-arrange (top-down)',
+    confirmAutoArrange:
+      'Reset every card to the automatic top-down layout? Manual positions will be lost.',
     selectedCount: 'selected',
     deselect: 'Deselect',
     removeSelected: 'Remove',
@@ -275,6 +278,9 @@ const translations = {
     moveMode: 'Réorganiser les cartes',
     selectMode: 'Sélectionner (cadre)',
     recenter: 'Recentrer',
+    autoArrange: 'Réorganiser (de haut en bas)',
+    confirmAutoArrange:
+      'Remettre toutes les cartes dans la disposition automatique de haut en bas ? Les positions manuelles seront perdues.',
     selectedCount: 'sélectionné(s)',
     deselect: 'Désélectionner',
     removeSelected: 'Supprimer',

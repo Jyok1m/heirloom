@@ -66,6 +66,7 @@ export function TreeCanvas({
   move,
   commit,
   reset,
+  resetAll,
 }: {
   persons: TreePerson[];
   unions: TreeUnion[];
@@ -79,6 +80,7 @@ export function TreeCanvas({
   move: (updates: Map<string, { x: number; y: number }>) => void;
   commit: () => void;
   reset: (ids: string[]) => void;
+  resetAll: () => void;
 }) {
   const { t } = useI18n();
   const { confirm } = useNotify();
@@ -361,6 +363,16 @@ export function TreeCanvas({
     });
   };
 
+  // Discard manual positions → snap back to the top-down generational layout,
+  // then re-fit the view to the fresh arrangement.
+  const autoArrange = () => {
+    void confirm(t('confirmAutoArrange')).then((ok) => {
+      if (!ok) return;
+      resetAll();
+      setFitted(false);
+    });
+  };
+
   const toolButton = (active: boolean) =>
     `grid size-8 place-items-center rounded-full text-sm transition ${
       active
@@ -566,6 +578,15 @@ export function TreeCanvas({
           <FontAwesomeIcon icon={icons.marquee} />
         </button>
         <span className="mx-0.5 h-5 w-px bg-stone-200 dark:bg-stone-700" />
+        <button
+          type="button"
+          onClick={autoArrange}
+          className={toolButton(false)}
+          title={t('autoArrange')}
+          aria-label={t('autoArrange')}
+        >
+          <FontAwesomeIcon icon={icons.sitemap} />
+        </button>
         <button
           type="button"
           onClick={fit}
