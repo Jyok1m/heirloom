@@ -34,7 +34,10 @@ RUN pnpm --filter heirloom-api --prod --legacy deploy /prod
 # pending migrations before starting the API — build target `migrate`.
 FROM build AS migrate
 WORKDIR /app/apps/heirloom-api
-CMD ["pnpm", "exec", "prisma", "migrate", "deploy"]
+# Invoke the Prisma CLI directly (not via `pnpm exec`): pnpm would re-verify the
+# whole workspace and try `install --production` (fails without a TTY, and would
+# drop Prisma as a devDependency). Deps are already baked into the image.
+CMD ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
 
 # ---------------------------------------------------------------------------
 # Lean runtime
