@@ -49,8 +49,10 @@ type Interaction =
       kind: 'card';
       ids: string[];
       personId: string;
-      sx: number;
+      sx: number; // drag origin; on touch it is reset to the finger position when armed
       sy: number;
+      lastX: number; // latest pointer position (so arming can snap the origin to it)
+      lastY: number;
       origins: Map<string, { x: number; y: number }>;
       moved: boolean;
       // Touch: the drag only starts once the long-press timer arms it.
@@ -308,6 +310,8 @@ export function TreeCanvas({
       personId: person.id,
       sx: event.clientX,
       sy: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
       origins,
       moved: false,
       armed: !isTouch,
@@ -322,6 +326,10 @@ export function TreeCanvas({
       longPress.current = window.setTimeout(() => {
         const it = interaction.current;
         if (it?.kind === 'card') {
+          // Snap the drag origin to where the finger is now so any drift during
+          // the hold doesn't make the card jump when the drag starts.
+          it.sx = it.lastX;
+          it.sy = it.lastY;
           it.armed = true;
           setArmedId(it.personId);
           navigator.vibrate?.(30);
@@ -333,11 +341,14 @@ export function TreeCanvas({
   const onCardPointerMove = (event: React.PointerEvent) => {
     const it = interaction.current;
     if (it?.kind !== 'card') return;
+    it.lastX = event.clientX;
+    it.lastY = event.clientY;
     const dist = Math.hypot(event.clientX - it.sx, event.clientY - it.sy);
-    // Before the touch drag is armed, any real movement is a swipe/pan attempt:
-    // cancel the pending long-press and don't drag or select on release.
+    // Before the touch drag is armed, tolerate finger jitter during the hold;
+    // only a clear swipe (a pan attempt) cancels the long-press. Too tight a
+    // threshold here makes the long-press impossible to trigger on a phone.
     if (!it.armed) {
-      if (dist > 10) {
+      if (dist > 40) {
         clearLongPress();
         it.moved = true;
       }
@@ -507,7 +518,13 @@ export function TreeCanvas({
               onPointerMove={onCardPointerMove}
               onPointerUp={onCardPointerUp}
               onPointerCancel={onCardPointerCancel}
-              style={{ left: x, top: y, width: CARD_W, height: CARD_H }}
+              style={{
+                left: x,
+                top: y,
+                width: CARD_W,
+                height: CARD_H,
+                WebkitTouchCallout: 'none',
+              }}
               className={`absolute flex touch-none select-none items-center gap-3 rounded-2xl border bg-white px-3 text-left shadow-sm transition-transform dark:bg-stone-800 ${
                 isArmed
                   ? 'z-10 scale-105 border-amber-500 shadow-xl ring-2 ring-amber-500'
