@@ -26,8 +26,10 @@ services:
       timeout: 3s
       retries: 10
 
-  # One-shot migrations. Not started by `up`; run explicitly before deploy:
-  #   docker compose run --rm migrate
+  # One-shot init container: applies pending migrations, then exits 0.
+  # `api` waits on service_completed_successfully, so a single `docker compose
+  # up --wait` runs migrations before the API and does NOT treat this clean
+  # exit as a failure.
   migrate:
     image: jyok1m/heirloom-api:migrate
     env_file: .env
@@ -51,6 +53,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks: [internal]
 
   app:

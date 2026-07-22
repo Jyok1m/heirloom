@@ -1,7 +1,9 @@
-/* antd (injected via StyleProvider layer) goes into the lowest-priority
-   layer so Tailwind utilities always win over antd's global reset (e.g. its
+/* Cascade layer order (left = lowest priority). antd (injected via
+   StyleProvider layer) sits ABOVE Tailwind's `base` (Preflight) so its reset
+   doesn't clobber antd component internals (e.g. Modal), but BELOW `utilities`
+   so Tailwind utility classes still win over antd's global reset (its
    `a { color }` was overriding text-white on links). */
-@layer antd;
+@layer theme, base, antd, components, utilities;
 @import 'tailwindcss';
 
 /* Dark mode driven by the .dark class on <html> */

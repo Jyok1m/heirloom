@@ -161,56 +161,56 @@ pipeline {
             }
         }
 
-        // stage('Deploy') {
-        //     when {
-        //         branch 'main'
-        //         expression { env.BUILD_API == 'true' || env.BUILD_APP == 'true' }
-        //     }
-        //     steps {
-        //         withCredentials([
-        //             sshUserPrivateKey(
-        //                 credentialsId: 'host-ssh-key',
-        //                 keyFileVariable: 'SSH_KEY',
-        //                 usernameVariable: 'SSH_USER',
-        //             ),
-        //             string(credentialsId: 'host-ssh-port', variable: 'HOST_PORT'),
-        //             usernamePassword(
-        //                 credentialsId: 'dockerhub-credentials',
-        //                 usernameVariable: 'DOCKER_USER',
-        //                 passwordVariable: 'DOCKER_PASS',
-        //             ),
-        //         ]) {
-        //             script {
-        //                 // Only pull/restart what changed. Migrations run when the API changed.
-        //                 // Service names match docker-compose.prod.yml (and the nginx upstream `api`).
-        //                 def services = []
-        //                 if (env.BUILD_API == 'true') { services << 'api' }
-        //                 if (env.BUILD_APP == 'true') { services << 'app' }
-        //                 env.SERVICES = services.join(' ')
-        //                 env.RUN_MIGRATE = env.BUILD_API
-        //             }
-        //             sh '''
-        //                 ssh -i "$SSH_KEY" -p "$HOST_PORT" \
-        //                     -o StrictHostKeyChecking=accept-new \
-        //                     "$SSH_USER@$SSH_HOST" bash -s <<REMOTE
-        //                     set -euo pipefail
-        //                     cd "$REMOTE_DIR"
-        //                     echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+        stage('Deploy') {
+            when {
+                branch 'main'
+                expression { env.BUILD_API == 'true' || env.BUILD_APP == 'true' }
+            }
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'host-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER',
+                    ),
+                    string(credentialsId: 'host-ssh-port', variable: 'HOST_PORT'),
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS',
+                    ),
+                ]) {
+                    script {
+                        // Only pull/restart what changed. Migrations run when the API changed.
+                        // Service names match docker-compose.prod.yml (and the nginx upstream `api`).
+                        def services = []
+                        if (env.BUILD_API == 'true') { services << 'api' }
+                        if (env.BUILD_APP == 'true') { services << 'app' }
+                        env.SERVICES = services.join(' ')
+                        env.RUN_MIGRATE = env.BUILD_API
+                    }
+                    sh '''
+                        ssh -i "$SSH_KEY" -p "$HOST_PORT" \
+                            -o StrictHostKeyChecking=accept-new \
+                            "$SSH_USER@$SSH_HOST" bash -s <<REMOTE
+                            set -euo pipefail
+                            cd "$REMOTE_DIR"
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-        //                     docker compose pull $SERVICES
-        //                     if [ "$RUN_MIGRATE" = "true" ]; then
-        //                         docker compose pull migrate
-        //                         docker compose run --rm migrate
-        //                     fi
-        //                     docker compose up -d --force-recreate $SERVICES
-        //                     docker compose ps
-        //                     docker image prune -f
-        //                     docker logout
-        //                     REMOTE
-        //             '''
-        //         }
-        //     }
-        // }
+                            docker compose pull $SERVICES
+                            if [ "$RUN_MIGRATE" = "true" ]; then
+                                docker compose pull migrate
+                                docker compose run --rm migrate
+                            fi
+                            docker compose up -d --force-recreate $SERVICES
+                            docker compose ps
+                            docker image prune -f
+                            docker logout
+                            REMOTE
+                    '''
+                }
+            }
+        }
     }
 
     post {
