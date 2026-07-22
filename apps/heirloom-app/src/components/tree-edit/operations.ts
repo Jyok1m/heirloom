@@ -11,6 +11,7 @@ export const TREE_CANVAS = graphql(`
         firstName
         lastName
         sex
+        religion
         photoMediaId
         birthDate
         deceased
@@ -42,6 +43,7 @@ export const PERSON_DETAIL = graphql(`
       nameSuffix
       nickname
       sex
+      religion
       notes
       photoMediaId
       events {

@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import type { PositionOverrides, TreePerson, TreeUnion } from '../components/tree2d/layout';
 import { TreeCanvas } from '../components/tree2d/TreeCanvas';
 import { enumLabel } from '../lib/genealogy';
-import { icons } from '../lib/icons';
+import { DEATH_SYMBOL, icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 import { useTitle } from '../lib/useTitle';
 
@@ -155,7 +155,13 @@ export function PublicTreeView() {
           )}
           {selected.deceased && (
             <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-              <FontAwesomeIcon icon={icons.cross} className="mr-1.5" />
+              <FontAwesomeIcon
+                icon={
+                  DEATH_SYMBOL[selected.religion ?? 'NEUTRAL'] ??
+                  DEATH_SYMBOL.NEUTRAL
+                }
+                className="mr-1.5"
+              />
               {t('deceased')}
             </p>
           )}

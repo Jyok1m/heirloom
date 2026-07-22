@@ -72,6 +72,7 @@ export class TreesService {
             firstName: true,
             lastName: true,
             sex: true,
+            religion: true,
             photoMediaId: true,
             events: { select: { type: true, dateValue: true } },
           },

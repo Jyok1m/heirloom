@@ -1,8 +1,8 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useRef, useState } from 'react';
-import type { Pedigree, Sex } from '../../generated/graphql';
-import { enumLabel, PEDIGREES, SEXES } from '../../lib/genealogy';
+import type { Pedigree, Religion, Sex } from '../../generated/graphql';
+import { enumLabel, PEDIGREES, RELIGIONS, SEXES } from '../../lib/genealogy';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { useNotify } from '../../lib/notify';
@@ -90,6 +90,7 @@ export function PersonPanel({
     nameSuffix: person.nameSuffix ?? '',
     nickname: person.nickname ?? '',
     sex: person.sex,
+    religion: person.religion,
     notes: person.notes ?? '',
   };
   const set = (key: string, value: string) =>
@@ -283,6 +284,7 @@ export function PersonPanel({
                 nameSuffix: current.nameSuffix || null,
                 nickname: current.nickname || null,
                 sex: current.sex as Sex,
+                religion: current.religion as Religion,
                 notes: current.notes || null,
               },
             },
@@ -330,6 +332,18 @@ export function PersonPanel({
           {SEXES.map((value) => (
             <option key={value} value={value}>
               {enumLabel('sex', value, lang)}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={t('religionL')}
+          value={current.religion}
+          onChange={(e) => set('religion', e.target.value)}
+          className={fieldClass}
+        >
+          {RELIGIONS.map((value) => (
+            <option key={value} value={value}>
+              {enumLabel('religion', value, lang)}
             </option>
           ))}
         </select>

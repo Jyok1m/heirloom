@@ -6,7 +6,7 @@ import {
   PartialType,
 } from '@nestjs/graphql';
 import { IsEnum, IsOptional, IsUUID, MaxLength } from 'class-validator';
-import { Sex } from '../../generated/prisma/enums';
+import { Religion, Sex } from '../../generated/prisma/enums';
 
 @InputType()
 export class CreatePersonInput {
@@ -43,6 +43,11 @@ export class CreatePersonInput {
   @IsOptional()
   @IsEnum(Sex)
   sex?: Sex;
+
+  @Field(() => Religion, { nullable: true })
+  @IsOptional()
+  @IsEnum(Religion)
+  religion?: Religion;
 
   @Field({ nullable: true })
   @IsOptional()

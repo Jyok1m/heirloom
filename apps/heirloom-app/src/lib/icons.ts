@@ -10,8 +10,11 @@ import {
   faCircleInfo,
   faCopy,
   faCross,
+  faDove,
   faExpand,
   faEye,
+  faStarAndCrescent,
+  faStarOfDavid,
   faUpDownLeftRight,
   faSitemap,
   faFileLines,
@@ -118,4 +121,12 @@ export const MEDIA_ICON: Record<string, IconDefinition> = {
   DOCUMENT: faFileLines,
   AUDIO: faMusic,
   VIDEO: faVideo,
+};
+
+// Death marker on the card, chosen by the person's religion (GEDCOM RELI)
+export const DEATH_SYMBOL: Record<string, IconDefinition> = {
+  CATHOLIC: faCross,
+  JEWISH: faStarOfDavid,
+  MUSLIM: faStarAndCrescent,
+  NEUTRAL: faDove,
 };

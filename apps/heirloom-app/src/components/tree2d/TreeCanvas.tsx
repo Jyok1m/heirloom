@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { icons } from '../../lib/icons';
+import { DEATH_SYMBOL, icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { useNotify } from '../../lib/notify';
 import {
@@ -549,7 +549,13 @@ export function TreeCanvas({
                     aria-label={t('deceased')}
                     className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-white text-stone-500 ring-1 ring-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:ring-stone-600"
                   >
-                    <FontAwesomeIcon icon={icons.cross} className="text-[8px]" />
+                    <FontAwesomeIcon
+                      icon={
+                        DEATH_SYMBOL[person.religion ?? 'NEUTRAL'] ??
+                        DEATH_SYMBOL.NEUTRAL
+                      }
+                      className="text-[8px]"
+                    />
                   </span>
                 )}
               </span>

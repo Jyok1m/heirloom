@@ -3,6 +3,7 @@ import type { Lang } from './i18n';
 // Enum value lists and their bilingual labels, mirroring the Prisma schema.
 
 export const SEXES = ['MALE', 'FEMALE', 'OTHER', 'UNKNOWN'] as const;
+export const RELIGIONS = ['CATHOLIC', 'JEWISH', 'MUSLIM', 'NEUTRAL'] as const;
 export const UNION_TYPES = [
   'MARRIAGE',
   'CIVIL_UNION',
@@ -43,6 +44,13 @@ const SEX: Labels = {
   FEMALE: { en: 'Female', fr: 'Femme' },
   OTHER: { en: 'Other', fr: 'Autre' },
   UNKNOWN: { en: 'Unknown', fr: 'Inconnu' },
+};
+
+const RELIGION: Labels = {
+  CATHOLIC: { en: 'Catholic', fr: 'Catholique' },
+  JEWISH: { en: 'Jewish', fr: 'Juive' },
+  MUSLIM: { en: 'Muslim', fr: 'Musulmane' },
+  NEUTRAL: { en: 'None / neutral', fr: 'Neutre' },
 };
 
 const UNION_TYPE: Labels = {
@@ -88,6 +96,7 @@ const EVENT_TYPE: Labels = {
 
 const GROUPS = {
   sex: SEX,
+  religion: RELIGION,
   unionType: UNION_TYPE,
   pedigree: PEDIGREE,
   mediaType: MEDIA_TYPE,

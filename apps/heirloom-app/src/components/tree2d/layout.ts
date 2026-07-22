@@ -11,6 +11,7 @@ export interface TreePerson {
   photoMediaId?: string | null;
   birthDate?: string | null;
   deceased?: boolean | null;
+  religion?: 'CATHOLIC' | 'JEWISH' | 'MUSLIM' | 'NEUTRAL' | null;
 }
 
 export interface TreeUnion {

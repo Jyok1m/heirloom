@@ -46,6 +46,7 @@ input CreatePersonInput {
   nameSuffix: String
   nickname: String
   notes: String
+  religion: Religion
   sex: Sex
   treeId: ID!
 }
@@ -204,6 +205,7 @@ type Person {
   notes: String
   parentUnions: [Union!]!
   photoMediaId: ID
+  religion: Religion!
   sex: Sex!
   treeId: ID!
   unions: [Union!]!
@@ -222,6 +224,13 @@ type Query {
   trees: [Tree!]!
   union(id: ID!): Union!
   unions(treeId: ID!): [Union!]!
+}
+
+enum Religion {
+  CATHOLIC
+  JEWISH
+  MUSLIM
+  NEUTRAL
 }
 
 enum Sex {
@@ -321,6 +330,7 @@ input UpdatePersonInput {
   nickname: String
   notes: String
   photoMediaId: ID
+  religion: Religion
   sex: Sex
 }
 

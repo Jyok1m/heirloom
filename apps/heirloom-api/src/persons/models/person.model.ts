@@ -1,5 +1,5 @@
 import { Field, ID, ObjectType } from '@nestjs/graphql';
-import { Sex } from '../../generated/prisma/enums';
+import { Religion, Sex } from '../../generated/prisma/enums';
 
 @ObjectType()
 export class Person {
@@ -29,6 +29,9 @@ export class Person {
 
   @Field(() => Sex)
   sex!: Sex;
+
+  @Field(() => Religion)
+  religion!: Religion;
 
   @Field(() => String, { nullable: true })
   notes!: string | null;

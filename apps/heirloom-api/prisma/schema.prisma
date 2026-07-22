@@ -68,6 +68,15 @@ enum MediaType {
   VIDEO
 }
 
+// GEDCOM RELI (religious affiliation). Drives the death marker shown on the
+// card; NEUTRAL means no religious symbol.
+enum Religion {
+  CATHOLIC
+  JEWISH
+  MUSLIM
+  NEUTRAL
+}
+
 // ADMIN manages trees and invites; MEMBER accesses trees via memberships
 enum UserRole {
   ADMIN
@@ -168,6 +177,8 @@ model Person {
   nameSuffix String?
   nickname   String?
   sex        Sex     @default(UNKNOWN)
+  // GEDCOM RELI; selects the religion-specific death marker on the card
+  religion   Religion @default(NEUTRAL)
   notes      String?
 
   // Chosen profile picture. FK to a Media of the same tree; cleared (SetNull)
