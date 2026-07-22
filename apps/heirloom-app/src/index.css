@@ -17,6 +17,22 @@ html {
   scroll-behavior: smooth;
 }
 
+/* No rubber-band / pull-to-refresh stealing canvas touch gestures. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* iOS auto-zooms into any input whose font-size is < 16px and then leaves the
+   page zoomed. Force native form controls to 16px on small screens. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Tailwind v4 no longer sets cursor:pointer on buttons — restore it globally */
 @layer base {
   button:not(:disabled),

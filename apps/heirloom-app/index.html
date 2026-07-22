@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The canvas has its own pinch-zoom; disable page zoom so it doesn't
+         fight the canvas gestures and so iOS stops auto-zooming into inputs. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
 
     <title>Heirloom — open source, self-hosted genealogy</title>
     <meta
