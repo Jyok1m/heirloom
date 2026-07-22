@@ -103,14 +103,18 @@ function orderGeneration(
     return ks.reduce((s, k) => s + k, 0) / ks.length;
   };
 
-  // Seed chains from the lowest-key members so couples read left→right.
+  // Seed chains from the lowest-DEGREE endpoints first (leaves before hubs), so
+  // a person with several spouses keeps ALL of them adjacent — starting on the
+  // hub would capture only one wing and orphan the other spouse. Lower key
+  // breaks ties so chains read left→right.
   const seeds = [...members].sort(
-    (a, b) => norm(a.id) - norm(b.id) || degree(a.id) - degree(b.id),
+    (a, b) => degree(a.id) - degree(b.id) || norm(a.id) - norm(b.id),
   );
   const groups: TreePerson[][] = [];
   for (const m of seeds) {
     if (!visited.has(m.id)) groups.push(chainFrom(m.id));
   }
+  // Place groups left→right by the barycenter of their parents above.
   groups.sort((g1, g2) => groupKey(g1) - groupKey(g2));
   return groups.flat();
 }
