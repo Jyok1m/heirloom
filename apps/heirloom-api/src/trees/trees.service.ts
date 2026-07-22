@@ -70,7 +70,9 @@ export class TreesService {
           select: {
             id: true,
             firstName: true,
+            usualName: true,
             lastName: true,
+            usedName: true,
             sex: true,
             religion: true,
             photoMediaId: true,

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { PositionOverrides, TreePerson, TreeUnion } from '../components/tree2d/layout';
 import { TreeCanvas } from '../components/tree2d/TreeCanvas';
-import { enumLabel } from '../lib/genealogy';
+import { displayName, enumLabel } from '../lib/genealogy';
 import { DEATH_SYMBOL, icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 import { useTitle } from '../lib/useTitle';
@@ -131,9 +131,7 @@ export function PublicTreeView() {
         <aside className="absolute bottom-4 right-4 top-16 z-10 w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
           <div className="mb-4 flex items-start justify-between gap-2">
             <h2 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-50">
-              {[selected.firstName, selected.lastName]
-                .filter(Boolean)
-                .join(' ') || '—'}
+              {displayName(selected) || '—'}
             </h2>
             <button
               type="button"

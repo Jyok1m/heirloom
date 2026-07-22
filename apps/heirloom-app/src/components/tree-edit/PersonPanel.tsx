@@ -2,7 +2,17 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useRef, useState } from 'react';
 import type { Pedigree, Religion, Sex } from '../../generated/graphql';
-import { enumLabel, PEDIGREES, RELIGIONS, SEXES } from '../../lib/genealogy';
+import {
+  bloodRelatives,
+  coupledPeople,
+  enumLabel,
+  NAME_PREFIXES,
+  NAME_SUFFIXES,
+  PEDIGREES,
+  RELIGIONS,
+  SEXES,
+} from '../../lib/genealogy';
+import type { TreeUnion } from '../tree2d/layout';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { useNotify } from '../../lib/notify';
@@ -24,7 +34,9 @@ import { fieldClass, ghostButton, personName, Section, smallButton } from './ui'
 interface NamedPerson {
   id: string;
   firstName?: string | null;
+  usualName?: string | null;
   lastName?: string | null;
+  usedName?: string | null;
 }
 
 const REFETCH = ['PersonDetail', 'TreeCanvas', 'UnionDetail'];
@@ -33,6 +45,7 @@ export function PersonPanel({
   personId,
   treeId,
   others,
+  unions,
   sources,
   isAdmin,
   onError,
@@ -43,6 +56,7 @@ export function PersonPanel({
   personId: string;
   treeId: string;
   others: NamedPerson[];
+  unions: TreeUnion[];
   sources: { id: string; title: string }[];
   isAdmin: boolean;
   onError(): void;
@@ -85,7 +99,9 @@ export function PersonPanel({
   // Initialize the identity form once the person loads / changes
   const current = form ?? {
     firstName: person.firstName ?? '',
+    usualName: person.usualName ?? '',
     lastName: person.lastName ?? '',
+    usedName: person.usedName ?? '',
     namePrefix: person.namePrefix ?? '',
     nameSuffix: person.nameSuffix ?? '',
     nickname: person.nickname ?? '',
@@ -98,6 +114,13 @@ export function PersonPanel({
 
   const otherIds = new Set(person.unions.flatMap((u) => u.partners.map((p) => p.id)));
   const partnerCandidates = others.filter((p) => p.id !== person.id);
+
+  // Never suggest this person's blood relatives (incest) or someone already in
+  // a couple as a new partner.
+  const personRelatives = bloodRelatives(person.id, unions);
+  const coupled = coupledPeople(unions);
+  const forbiddenPartner = (id: string) =>
+    otherIds.has(id) || personRelatives.has(id) || coupled.has(id);
 
   const fail = () => onError();
 
@@ -161,11 +184,17 @@ export function PersonPanel({
   const addSpouse = () =>
     runRelative('spouse', async () => {
       const spouseId = await blankPerson();
-      const union = await createUnion({
-        variables: { input: { treeId, type: 'MARRIAGE' } },
-      });
-      const unionId = union.data!.createUnion.id;
-      await addPartner({ variables: { unionId, personId: person.id } });
+      // Complete a single-parent union of this person (so its children become
+      // shared with the new spouse) rather than starting a separate one.
+      const soloUnion = person.unions.find((u) => u.partners.length === 1);
+      let unionId = soloUnion?.id;
+      if (!unionId) {
+        const union = await createUnion({
+          variables: { input: { treeId, type: 'MARRIAGE' } },
+        });
+        unionId = union.data!.createUnion.id;
+        await addPartner({ variables: { unionId, personId: person.id } });
+      }
       await addPartner({ variables: { unionId, personId: spouseId } });
       return spouseId;
     });
@@ -173,7 +202,10 @@ export function PersonPanel({
   const addChildRelative = () =>
     runRelative('child', async () => {
       const childId = await blankPerson();
-      let unionId = person.unions[0]?.id;
+      // Prefer an existing couple so both partners parent the child; fall back
+      // to the person's first union, else a new single-parent union.
+      const couple = person.unions.find((u) => u.partners.length >= 2);
+      let unionId = couple?.id ?? person.unions[0]?.id;
       if (!unionId) {
         const union = await createUnion({
           variables: { input: { treeId, type: 'UNKNOWN' } },
@@ -279,7 +311,9 @@ export function PersonPanel({
               id: person.id,
               input: {
                 firstName: current.firstName || null,
+                usualName: current.usualName || null,
                 lastName: current.lastName || null,
+                usedName: current.usedName || null,
                 namePrefix: current.namePrefix || null,
                 nameSuffix: current.nameSuffix || null,
                 nickname: current.nickname || null,
@@ -293,29 +327,62 @@ export function PersonPanel({
       >
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <input
-            placeholder={t('firstNameL')}
+            placeholder={t('firstNamesL')}
             value={current.firstName}
             onChange={(e) => set('firstName', e.target.value)}
             className={fieldClass}
           />
           <input
-            placeholder={t('lastNameL')}
+            list="usual-name-options"
+            placeholder={t('usualNameL')}
+            value={current.usualName}
+            onChange={(e) => set('usualName', e.target.value)}
+            className={fieldClass}
+          />
+          <datalist id="usual-name-options">
+            {(current.firstName || '')
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((name) => (
+                <option key={name} value={name} />
+              ))}
+          </datalist>
+          <input
+            placeholder={t('birthNameL')}
             value={current.lastName}
             onChange={(e) => set('lastName', e.target.value)}
             className={fieldClass}
           />
           <input
+            placeholder={t('usedNameL')}
+            value={current.usedName}
+            onChange={(e) => set('usedName', e.target.value)}
+            className={fieldClass}
+          />
+          <input
+            list="name-prefix-options"
             placeholder={t('prefixL')}
             value={current.namePrefix}
             onChange={(e) => set('namePrefix', e.target.value)}
             className={fieldClass}
           />
           <input
+            list="name-suffix-options"
             placeholder={t('suffixL')}
             value={current.nameSuffix}
             onChange={(e) => set('nameSuffix', e.target.value)}
             className={fieldClass}
           />
+          <datalist id="name-prefix-options">
+            {NAME_PREFIXES.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
+          <datalist id="name-suffix-options">
+            {NAME_SUFFIXES.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
         </div>
         <input
           placeholder={t('nicknameL')}
@@ -509,7 +576,7 @@ export function PersonPanel({
         >
           <option value="">{t('addPartner')}</option>
           {partnerCandidates
-            .filter((p) => !otherIds.has(p.id))
+            .filter((p) => !forbiddenPartner(p.id))
             .map((p) => (
               <option key={p.id} value={p.id}>
                 {personName(p)}

@@ -3,6 +3,99 @@ import type { Lang } from './i18n';
 // Enum value lists and their bilingual labels, mirroring the Prisma schema.
 
 export const SEXES = ['MALE', 'FEMALE', 'OTHER', 'UNKNOWN'] as const;
+
+// Datalist suggestions (free text is still allowed) — GEDCOM NPFX / NSFX
+export const NAME_PREFIXES = [
+  'M.', 'Mme', 'Mlle', 'Dr', 'Pr', 'Me', 'Mgr', 'R.P.', 'Sœur', 'Cdt', 'Col.', 'Gén.',
+] as const;
+export const NAME_SUFFIXES = [
+  'Jr', 'Sr', 'père', 'fils', 'aîné', 'cadet', 'II', 'III', 'IV',
+] as const;
+
+// Name display honours the "prénom usuel" and "nom d'usage" when set, falling
+// back to the full given name and the birth surname.
+export interface DisplayNameParts {
+  firstName?: string | null;
+  usualName?: string | null;
+  lastName?: string | null;
+  usedName?: string | null;
+}
+export function displayName(p?: DisplayNameParts): string {
+  const given = p?.usualName || p?.firstName || '';
+  const family = p?.usedName || p?.lastName || '';
+  return [given, family].filter(Boolean).join(' ');
+}
+export function displayInitials(p?: DisplayNameParts): string {
+  const given = p?.usualName || p?.firstName || '';
+  const family = p?.usedName || p?.lastName || '';
+  return ((given[0] ?? '') + (family[0] ?? '')).toUpperCase() || '·';
+}
+
+// -------------------------------------------------------------- partner guards
+
+export interface GraphUnion {
+  partnerIds: string[];
+  childIds: string[];
+}
+
+// Blood relatives barred from becoming a person's partner (incest guard):
+// every ancestor, every descendant, and full/half siblings.
+export function bloodRelatives(
+  personId: string,
+  unions: GraphUnion[],
+): Set<string> {
+  const parentsOf = new Map<string, string[]>();
+  const childrenOf = new Map<string, string[]>();
+  for (const union of unions) {
+    for (const childId of union.childIds) {
+      parentsOf.set(childId, [
+        ...(parentsOf.get(childId) ?? []),
+        ...union.partnerIds,
+      ]);
+      for (const parentId of union.partnerIds) {
+        childrenOf.set(parentId, [
+          ...(childrenOf.get(parentId) ?? []),
+          childId,
+        ]);
+      }
+    }
+  }
+
+  const result = new Set<string>();
+  const walk = (start: string, next: Map<string, string[]>) => {
+    const stack = [start];
+    while (stack.length) {
+      const current = stack.pop() as string;
+      for (const id of next.get(current) ?? []) {
+        if (!result.has(id)) {
+          result.add(id);
+          stack.push(id);
+        }
+      }
+    }
+  };
+  walk(personId, parentsOf); // ancestors
+  walk(personId, childrenOf); // descendants
+  for (const union of unions) {
+    if (union.childIds.includes(personId)) {
+      for (const sibling of union.childIds) result.add(sibling);
+    }
+  }
+  result.delete(personId);
+  return result;
+}
+
+// People already in a couple (a partner in a two-person union): excluded from
+// the "add partner" list to keep the tree unambiguous.
+export function coupledPeople(unions: GraphUnion[]): Set<string> {
+  const coupled = new Set<string>();
+  for (const union of unions) {
+    if (union.partnerIds.length >= 2) {
+      for (const id of union.partnerIds) coupled.add(id);
+    }
+  }
+  return coupled;
+}
 export const RELIGIONS = ['CATHOLIC', 'JEWISH', 'MUSLIM', 'NEUTRAL'] as const;
 export const UNION_TYPES = [
   'MARRIAGE',

@@ -1,5 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { ReactNode } from 'react';
+import { displayName, type DisplayNameParts } from '../../lib/genealogy';
 import { icons } from '../../lib/icons';
 
 export const fieldClass =
@@ -57,7 +58,4 @@ export function Chip({
   );
 }
 
-export const personName = (p?: {
-  firstName?: string | null;
-  lastName?: string | null;
-}) => [p?.firstName, p?.lastName].filter(Boolean).join(' ') || '(?)';
+export const personName = (p?: DisplayNameParts) => displayName(p) || '(?)';

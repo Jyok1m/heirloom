@@ -1,15 +1,23 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
-import type { Pedigree, UnionType } from '../../generated/graphql';
-import { enumLabel, PEDIGREES, UNION_TYPES } from '../../lib/genealogy';
+import type { Pedigree, Sex, UnionType } from '../../generated/graphql';
+import {
+  bloodRelatives,
+  coupledPeople,
+  enumLabel,
+  PEDIGREES,
+  UNION_TYPES,
+} from '../../lib/genealogy';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { useNotify } from '../../lib/notify';
+import type { TreeUnion } from '../tree2d/layout';
 import { EventList } from './EventList';
 import {
   ADD_CHILD,
   ADD_PARTNER,
+  CREATE_PERSON,
   DELETE_UNION,
   REMOVE_CHILD,
   REMOVE_PARTNER,
@@ -17,12 +25,20 @@ import {
   UNION_DETAIL,
   UPDATE_UNION,
 } from './operations';
-import { fieldClass, ghostButton, personName, Section } from './ui';
+import {
+  fieldClass,
+  ghostButton,
+  personName,
+  Section,
+  smallButton,
+} from './ui';
 
 interface NamedPerson {
   id: string;
   firstName?: string | null;
+  usualName?: string | null;
   lastName?: string | null;
+  usedName?: string | null;
 }
 
 const REFETCH = ['UnionDetail', 'TreeCanvas', 'PersonDetail'];
@@ -30,6 +46,7 @@ const REFETCH = ['UnionDetail', 'TreeCanvas', 'PersonDetail'];
 export function UnionPanel({
   unionId,
   others,
+  unions,
   sources,
   isAdmin,
   onError,
@@ -38,6 +55,7 @@ export function UnionPanel({
 }: {
   unionId: string;
   others: NamedPerson[];
+  unions: TreeUnion[];
   sources: { id: string; title: string }[];
   isAdmin: boolean;
   onError(): void;
@@ -49,6 +67,7 @@ export function UnionPanel({
   const { data } = useQuery(UNION_DETAIL, { variables: { id: unionId } });
   const [updateUnion] = useMutation(UPDATE_UNION, { refetchQueries: REFETCH });
   const [deleteUnion] = useMutation(DELETE_UNION, { refetchQueries: REFETCH });
+  const [createPerson] = useMutation(CREATE_PERSON, { refetchQueries: REFETCH });
   const [addPartner] = useMutation(ADD_PARTNER, { refetchQueries: REFETCH });
   const [removePartner] = useMutation(REMOVE_PARTNER, {
     refetchQueries: REFETCH,
@@ -71,6 +90,32 @@ export function UnionPanel({
 
   const partnerIds = new Set(union.partners.map((p) => p.id));
   const childIds = new Set(union.children.map((c) => c.personId));
+
+  // Bar the current partners' blood relatives (incest) and anyone already in a
+  // couple from the "add partner" list.
+  const relativeIds = new Set<string>();
+  for (const partner of union.partners) {
+    for (const id of bloodRelatives(partner.id, unions)) relativeIds.add(id);
+  }
+  const coupled = coupledPeople(unions);
+  const forbiddenPartner = (id: string) =>
+    partnerIds.has(id) ||
+    childIds.has(id) ||
+    relativeIds.has(id) ||
+    coupled.has(id);
+
+  const createPartner = () =>
+    void createPerson({
+      variables: { input: { treeId: union.treeId, sex: 'UNKNOWN' as Sex } },
+    })
+      .then((res) => {
+        const newId = res.data?.createPerson.id;
+        if (!newId) throw new Error('create failed');
+        return addPartner({
+          variables: { unionId: union.id, personId: newId },
+        }).then(() => onSelectPerson(newId));
+      })
+      .catch(fail);
 
   return (
     <div>
@@ -141,26 +186,35 @@ export function UnionPanel({
           ))}
         </div>
         {union.partners.length < 2 && (
-          <select
-            aria-label={t('addPartner')}
-            value=""
-            className="mt-1.5 w-full rounded-lg border border-dashed border-stone-300 bg-transparent px-2 py-1.5 text-sm text-stone-500 dark:border-stone-600"
-            onChange={(e) => {
-              if (!e.target.value) return;
-              void addPartner({
-                variables: { unionId: union.id, personId: e.target.value },
-              }).catch(fail);
-            }}
-          >
-            <option value="">{t('addPartner')}</option>
-            {others
-              .filter((p) => !partnerIds.has(p.id) && !childIds.has(p.id))
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {personName(p)}
-                </option>
-              ))}
-          </select>
+          <div className="mt-1.5 flex gap-2">
+            <select
+              aria-label={t('addPartner')}
+              value=""
+              className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 bg-transparent px-2 py-1.5 text-sm text-stone-500 dark:border-stone-600"
+              onChange={(e) => {
+                if (!e.target.value) return;
+                void addPartner({
+                  variables: { unionId: union.id, personId: e.target.value },
+                }).catch(fail);
+              }}
+            >
+              <option value="">{t('addPartner')}</option>
+              {others
+                .filter((p) => !forbiddenPartner(p.id))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {personName(p)}
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              onClick={createPartner}
+              className={`${smallButton} shrink-0 whitespace-nowrap`}
+            >
+              + {t('newPerson')}
+            </button>
+          </div>
         )}
       </Section>
 

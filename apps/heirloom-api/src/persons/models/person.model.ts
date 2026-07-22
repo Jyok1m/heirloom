@@ -15,8 +15,16 @@ export class Person {
   @Field(() => String, { nullable: true })
   firstName!: string | null;
 
+  // Preferred given name ("prénom usuel") among firstName
+  @Field(() => String, { nullable: true })
+  usualName!: string | null;
+
   @Field(() => String, { nullable: true })
   lastName!: string | null;
+
+  // Everyday / married name ("nom d'usage"), shown in place of lastName
+  @Field(() => String, { nullable: true })
+  usedName!: string | null;
 
   @Field(() => String, { nullable: true })
   namePrefix!: string | null;

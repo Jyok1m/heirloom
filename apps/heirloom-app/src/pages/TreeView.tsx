@@ -25,7 +25,7 @@ import {
 import { usePositions } from '../components/tree2d/positions';
 import type { Sex } from '../generated/graphql';
 import { icons } from '../lib/icons';
-import { enumLabel, SEXES } from '../lib/genealogy';
+import { displayName, enumLabel, SEXES } from '../lib/genealogy';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 import { useTitle } from '../lib/useTitle';
@@ -196,12 +196,7 @@ export function TreeView() {
           : panel?.kind === 'union'
             ? t('unionLabel')
             : panel?.kind === 'person'
-              ? (() => {
-                  const p = others.find((x) => x.id === panel.id);
-                  return (
-                    [p?.firstName, p?.lastName].filter(Boolean).join(' ') || '—'
-                  );
-                })()
+              ? displayName(others.find((x) => x.id === panel.id)) || '—'
               : '';
 
   return (
@@ -312,6 +307,7 @@ export function TreeView() {
               personId={panel.id}
               treeId={id}
               others={others}
+              unions={treeUnions}
               sources={sources}
               isAdmin={isAdmin ?? false}
               onError={fail}
@@ -325,6 +321,7 @@ export function TreeView() {
               key={panel.id}
               unionId={panel.id}
               others={others}
+              unions={treeUnions}
               sources={sources}
               isAdmin={isAdmin ?? false}
               onError={fail}

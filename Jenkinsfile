@@ -43,7 +43,7 @@ pipeline {
 
         // Absolute public URL baked into the frontend (canonical/OG/sitemap).
         // Leave empty to fall back to relative behaviour; set to the prod domain.
-        PUBLIC_URL  = 'https://heirloom.joachimjasmin.com'
+        PUBLIC_URL  = 'https://heirloom-app.com'
     }
 
     stages {

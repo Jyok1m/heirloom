@@ -5,7 +5,9 @@
 export interface TreePerson {
   id: string;
   firstName: string | null;
+  usualName?: string | null;
   lastName: string | null;
+  usedName?: string | null;
   sex: 'MALE' | 'FEMALE' | 'OTHER' | 'UNKNOWN';
   // Card extras (optional so callers can omit them)
   photoMediaId?: string | null;

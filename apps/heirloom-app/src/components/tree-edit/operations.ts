@@ -9,7 +9,9 @@ export const TREE_CANVAS = graphql(`
       persons {
         id
         firstName
+        usualName
         lastName
+        usedName
         sex
         religion
         photoMediaId
@@ -38,7 +40,9 @@ export const PERSON_DETAIL = graphql(`
       id
       treeId
       firstName
+      usualName
       lastName
+      usedName
       namePrefix
       nameSuffix
       nickname

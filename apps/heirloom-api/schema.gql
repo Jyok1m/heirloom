@@ -49,6 +49,8 @@ input CreatePersonInput {
   religion: Religion
   sex: Sex
   treeId: ID!
+  usedName: String
+  usualName: String
 }
 
 input CreateSourceInput {
@@ -210,6 +212,8 @@ type Person {
   treeId: ID!
   unions: [Union!]!
   updatedAt: DateTime!
+  usedName: String
+  usualName: String
 }
 
 type Query {
@@ -332,6 +336,8 @@ input UpdatePersonInput {
   photoMediaId: ID
   religion: Religion
   sex: Sex
+  usedName: String
+  usualName: String
 }
 
 input UpdateSourceInput {

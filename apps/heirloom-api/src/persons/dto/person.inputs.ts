@@ -22,7 +22,17 @@ export class CreatePersonInput {
   @Field({ nullable: true })
   @IsOptional()
   @MaxLength(200)
+  usualName?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @MaxLength(200)
   lastName?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @MaxLength(200)
+  usedName?: string;
 
   @Field({ nullable: true })
   @IsOptional()

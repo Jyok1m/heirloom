@@ -171,7 +171,11 @@ model Person {
   gedcomId String?
 
   firstName String?
+  // Preferred given name among firstName ("prénom usuel", GEDCOM _RUFNAME)
+  usualName String?
   lastName  String?
+  // Everyday / married name shown in place of lastName ("nom d'usage")
+  usedName  String?
   // GEDCOM NPFX / NSFX / NICK
   namePrefix String?
   nameSuffix String?

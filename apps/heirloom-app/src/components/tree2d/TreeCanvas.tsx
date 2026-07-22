@@ -1,5 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { displayInitials, displayName } from '../../lib/genealogy';
 import { DEATH_SYMBOL, icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { useNotify } from '../../lib/notify';
@@ -19,15 +20,9 @@ const SEX_ACCENT: Record<TreePerson['sex'], string> = {
   UNKNOWN: '#a8a29e',
 };
 
-function initials(person: TreePerson): string {
-  const a = person.firstName?.[0] ?? '';
-  const b = person.lastName?.[0] ?? '';
-  return (a + b).toUpperCase() || '·';
-}
+const initials = (person: TreePerson): string => displayInitials(person);
 
-function fullName(person: TreePerson): string {
-  return [person.firstName, person.lastName].filter(Boolean).join(' ') || '—';
-}
+const fullName = (person: TreePerson): string => displayName(person) || '—';
 
 interface Transform {
   x: number;
@@ -122,6 +117,9 @@ export function TreeCanvas({
   const interaction = useRef<Interaction | null>(null);
   // Active pointers that started on the background (for pan + pinch-zoom).
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  // Card a background gesture started on — lets a touch tap select the card
+  // while still allowing the same finger (and a second one) to pan/pinch.
+  const pressedCardId = useRef<string | null>(null);
   // Card currently being dragged (for the lift/scale visual cue).
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [fitted, setFitted] = useState(false);
@@ -173,6 +171,12 @@ export function TreeCanvas({
   const onBgPointerDown = (event: React.PointerEvent) => {
     const el = viewportRef.current;
     if (!el) return;
+    // Which card (if any) this gesture began on — touch presses on a card bubble
+    // here (they aren't captured by the card) so pan/pinch keeps working.
+    pressedCardId.current =
+      (event.target as HTMLElement | null)
+        ?.closest?.('[data-person-id]')
+        ?.getAttribute('data-person-id') ?? null;
     const rect = el.getBoundingClientRect();
     const sx = event.clientX - rect.left;
     const sy = event.clientY - rect.top;
@@ -282,9 +286,9 @@ export function TreeCanvas({
         onSelect(null);
       }
     } else if (it?.kind === 'pan' && !it.moved) {
-      // background click: clear everything
+      // A tap that didn't pan: select the card it landed on, else clear.
       setSelectedIds(new Set());
-      onSelect(null);
+      onSelect(pressedCardId.current);
     }
   };
 
@@ -293,6 +297,10 @@ export function TreeCanvas({
   // deterministic toggle) so a plain touch stays a tap/pan — no flaky
   // long-press gesture detection.
   const onCardPointerDown = (person: TreePerson, event: React.PointerEvent) => {
+    // Touch: let the press bubble to the viewport so it can pan/pinch (the card
+    // is identified via data-person-id for tap-to-select). Only mouse/pen drag
+    // a card here.
+    if (event.pointerType === 'touch') return;
     event.stopPropagation();
     const inSelection = selectedIds.has(person.id) && selectedIds.size > 1;
     const ids = inSelection ? [...selectedIds] : [person.id];
@@ -309,10 +317,9 @@ export function TreeCanvas({
       sy: event.clientY,
       origins,
       moved: false,
-      // Drag is desktop-only: touch never moves cards (avoids the mobile
-      // gesture conflicts); a touch still taps to select and pans the canvas.
-      // The read-only share view never drags — cards only tap to inspect.
-      draggable: !readOnly && event.pointerType !== 'touch',
+      // Only mouse/pen reach here (touch returned early and pans instead); the
+      // read-only share view still never drags.
+      draggable: !readOnly,
     };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -339,10 +346,11 @@ export function TreeCanvas({
   };
 
   const onCardPointerUp = () => {
-    setDraggingId(null);
     const it = interaction.current;
-    interaction.current = null;
+    // Touch pan/pinch is owned by the viewport; don't disturb it here.
     if (it?.kind !== 'card') return;
+    setDraggingId(null);
+    interaction.current = null;
     if (it.draggable && it.moved) {
       commit();
     } else if (!it.moved) {
@@ -500,6 +508,7 @@ export function TreeCanvas({
               key={person.id}
               role="button"
               tabIndex={0}
+              data-person-id={person.id}
               onPointerDown={(event) => onCardPointerDown(person, event)}
               onPointerMove={onCardPointerMove}
               onPointerUp={onCardPointerUp}
