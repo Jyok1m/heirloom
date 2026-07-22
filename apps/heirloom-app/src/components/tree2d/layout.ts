@@ -52,11 +52,14 @@ export const GAP_X = 36;
 export const GEN_GAP = 116;
 const PAD = 80;
 
-// Order a generation so partners sit next to each other, building spouse
-// chains: a remarried person ends up between both spouses (A – P – B).
+// Order one generation left-to-right. Partners/remarriage stay adjacent as a
+// chain (A – P – B), and the chains are then sorted by `keyOf` — a barycenter of
+// each group's parent positions in the generation above — so a family's
+// descendants stay under it and parent→child links stop crossing.
 function orderGeneration(
   members: TreePerson[],
   unions: TreeUnion[],
+  keyOf: (id: string) => number,
 ): TreePerson[] {
   const ids = new Set(members.map((m) => m.id));
   const byId = new Map(members.map((m) => [m.id, m]));
@@ -71,30 +74,45 @@ function orderGeneration(
   }
   const degree = (id: string) => partners.get(id)?.size ?? 0;
 
-  const visited = new Set<string>();
-  const ordered: TreePerson[] = [];
-  const visit = (id: string) => {
-    if (visited.has(id)) return;
-    visited.add(id);
-    ordered.push(byId.get(id)!);
-    // Walk toward the far end of the chain first (lowest-degree partner)
-    const next = [...(partners.get(id) ?? [])].sort(
-      (a, b) => degree(a) - degree(b),
-    );
-    for (const p of next) visit(p);
+  const norm = (id: string) => {
+    const k = keyOf(id);
+    return Number.isNaN(k) ? Number.POSITIVE_INFINITY : k;
   };
 
-  // Start chains from leaves (degree 1) so couples read left-to-right,
-  // then higher-degree hubs, and finally the unattached singles.
-  const starts = [...members].sort((a, b) => {
-    const single = (id: string) => (degree(id) === 0 ? 1 : 0);
-    const sa = single(a.id);
-    const sb = single(b.id);
-    if (sa !== sb) return sa - sb;
-    return degree(a.id) - degree(b.id);
-  });
-  for (const m of starts) visit(m.id);
-  return ordered;
+  // Build one partner-chain starting from `start`, always stepping to the
+  // remaining partner with the lowest key so the chain reads left-to-right.
+  const visited = new Set<string>();
+  const chainFrom = (start: string): TreePerson[] => {
+    const chain: TreePerson[] = [];
+    let cur: string | undefined = start;
+    while (cur && !visited.has(cur)) {
+      visited.add(cur);
+      chain.push(byId.get(cur)!);
+      cur = [...(partners.get(cur) ?? [])]
+        .filter((p) => !visited.has(p))
+        .sort((a, b) => norm(a) - norm(b) || degree(a) - degree(b))[0];
+    }
+    return chain;
+  };
+
+  // A group sits at the mean key of its keyed members (married-in members have
+  // no parents → no key, and don't drag the group off its blood-relatives).
+  const groupKey = (group: TreePerson[]): number => {
+    const ks = group.map((p) => keyOf(p.id)).filter((k) => !Number.isNaN(k));
+    if (!ks.length) return Number.POSITIVE_INFINITY;
+    return ks.reduce((s, k) => s + k, 0) / ks.length;
+  };
+
+  // Seed chains from the lowest-key members so couples read left→right.
+  const seeds = [...members].sort(
+    (a, b) => norm(a.id) - norm(b.id) || degree(a.id) - degree(b.id),
+  );
+  const groups: TreePerson[][] = [];
+  for (const m of seeds) {
+    if (!visited.has(m.id)) groups.push(chainFrom(m.id));
+  }
+  groups.sort((g1, g2) => groupKey(g1) - groupKey(g2));
+  return groups.flat();
 }
 
 export function layoutTree(
@@ -157,9 +175,30 @@ export function layoutTree(
     byGeneration.set(gen, [...(byGeneration.get(gen) ?? []), person]);
   }
 
+  // Order generations top-down: each generation is sorted by the barycenter of
+  // its parents' positions in the generation just placed above it, so children
+  // line up under their parents and family branches don't cross.
   const orderedByGen = new Map<number, TreePerson[]>();
-  for (const [gen, members] of byGeneration) {
-    orderedByGen.set(gen, orderGeneration(members, unions));
+  const indexInGen = new Map<string, number>();
+  const sortedGens = [...byGeneration.keys()].sort((a, b) => a - b);
+  for (const gen of sortedGens) {
+    const members = byGeneration.get(gen) ?? [];
+    const keyOf =
+      gen === sortedGens[0]
+        ? (id: string) => persons.findIndex((p) => p.id === id)
+        : (id: string) => {
+            const placed = (parentsOf.get(id) ?? []).filter((pid) =>
+              indexInGen.has(pid),
+            );
+            if (!placed.length) return Number.NaN;
+            return (
+              placed.reduce((s, pid) => s + (indexInGen.get(pid) ?? 0), 0) /
+              placed.length
+            );
+          };
+    const ordered = orderGeneration(members, unions, keyOf);
+    orderedByGen.set(gen, ordered);
+    ordered.forEach((p, i) => indexInGen.set(p.id, i));
   }
 
   const rowWidth = (count: number) => count * CARD_W + (count - 1) * GAP_X;
