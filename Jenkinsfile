@@ -189,24 +189,24 @@ pipeline {
                         env.SERVICES = services.join(' ')
                         env.RUN_MIGRATE = env.BUILD_API
                     }
+                    // Remote script passed as a single SSH argument (not a heredoc:
+                    // its terminator is indentation-sensitive and breaks easily).
+                    // Agent-side vars are expanded inside the double quotes before
+                    // the string is sent; $SERVICES stays unquoted to split into args.
                     sh '''
                         ssh -i "$SSH_KEY" -p "$HOST_PORT" \
                             -o StrictHostKeyChecking=accept-new \
-                            "$SSH_USER@$SSH_HOST" bash -s <<REMOTE
-                            set -euo pipefail
-                            cd "$REMOTE_DIR"
-                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-
-                            docker compose pull $SERVICES
-                            if [ "$RUN_MIGRATE" = "true" ]; then
-                                docker compose pull migrate
-                                docker compose run --rm migrate
-                            fi
-                            docker compose up -d --force-recreate $SERVICES
-                            docker compose ps
-                            docker image prune -f
-                            docker logout
-                            REMOTE
+                            "$SSH_USER@$SSH_HOST" "
+                                set -e
+                                cd \"$REMOTE_DIR\"
+                                echo \"$DOCKER_PASS\" | docker login -u \"$DOCKER_USER\" --password-stdin
+                                docker compose pull $SERVICES
+                                if [ \"$RUN_MIGRATE\" = true ]; then docker compose pull migrate && docker compose run --rm migrate; fi
+                                docker compose up -d --force-recreate $SERVICES
+                                docker compose ps
+                                docker image prune -f
+                                docker logout
+                            "
                     '''
                 }
             }
