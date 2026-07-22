@@ -518,7 +518,7 @@ export function TreeCanvas({
                 {initials(person)}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-stone-800 dark:text-stone-100">
+                <span className="line-clamp-2 text-sm font-medium leading-tight text-stone-800 dark:text-stone-100">
                   {fullName(person)}
                 </span>
                 <span className="block text-[11px] text-stone-400 dark:text-stone-500">

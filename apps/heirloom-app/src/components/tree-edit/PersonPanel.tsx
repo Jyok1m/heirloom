@@ -210,7 +210,7 @@ export function PersonPanel({
           }).catch(fail);
         }}
       >
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <input
             placeholder={t('firstNameL')}
             value={current.firstName}

@@ -46,8 +46,8 @@ export interface TreeLayout {
 
 export type PositionOverrides = Map<string, { x: number; y: number }>;
 
-export const CARD_W = 178;
-export const CARD_H = 68;
+export const CARD_W = 196;
+export const CARD_H = 78;
 export const GAP_X = 36;
 export const GEN_GAP = 116;
 const PAD = 80;

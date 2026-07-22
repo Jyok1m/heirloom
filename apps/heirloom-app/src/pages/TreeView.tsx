@@ -73,7 +73,7 @@ function AddPersonForm({
           .catch(onError);
       }}
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input
           autoFocus
           placeholder={t('firstNameL')}
