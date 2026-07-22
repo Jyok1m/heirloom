@@ -29,10 +29,6 @@ function fullName(person: TreePerson): string {
   return [person.firstName, person.lastName].filter(Boolean).join(' ') || '—';
 }
 
-// Touch drag is armed by a long-press (a plain touch pans/taps). Mouse/pen drag
-// immediately. 500ms feels responsive; bump toward 2000 for a more deliberate hold.
-const LONG_PRESS_MS = 500;
-
 interface Transform {
   x: number;
   y: number;
@@ -49,14 +45,12 @@ type Interaction =
       kind: 'card';
       ids: string[];
       personId: string;
-      sx: number; // drag origin; on touch it is reset to the finger position when armed
+      sx: number;
       sy: number;
-      lastX: number; // latest pointer position (so arming can snap the origin to it)
-      lastY: number;
       origins: Map<string, { x: number; y: number }>;
       moved: boolean;
-      // Touch: the drag only starts once the long-press timer arms it.
-      armed: boolean;
+      // Dragging enabled for this press: mouse/pen always, touch only in 'move' mode.
+      draggable: boolean;
     };
 
 export function TreeCanvas({
@@ -105,7 +99,7 @@ export function TreeCanvas({
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
-  const [mode, setMode] = useState<'pan' | 'select'>('pan');
+  const [mode, setMode] = useState<'pan' | 'move' | 'select'>('pan');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<{
     x: number;
@@ -117,17 +111,9 @@ export function TreeCanvas({
   const interaction = useRef<Interaction | null>(null);
   // Active pointers that started on the background (for pan + pinch-zoom).
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
-  // Pending long-press timer + the card it will arm (for the visual cue).
-  const longPress = useRef<number | null>(null);
-  const [armedId, setArmedId] = useState<string | null>(null);
+  // Card currently being dragged (for the lift/scale visual cue).
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const [fitted, setFitted] = useState(false);
-
-  const clearLongPress = () => {
-    if (longPress.current !== null) {
-      clearTimeout(longPress.current);
-      longPress.current = null;
-    }
-  };
 
   const fit = useCallback(() => {
     const el = viewportRef.current;
@@ -292,8 +278,9 @@ export function TreeCanvas({
   };
 
   // --- card drag ---
-  // Mouse/pen drag immediately; touch arms the drag after a long-press so a
-  // plain touch still taps (select) and a swipe doesn't yank the card.
+  // Mouse/pen drag a card immediately. Touch only drags in 'move' mode (a
+  // deterministic toggle) so a plain touch stays a tap/pan — no flaky
+  // long-press gesture detection.
   const onCardPointerDown = (person: TreePerson, event: React.PointerEvent) => {
     event.stopPropagation();
     const inSelection = selectedIds.has(person.id) && selectedIds.size > 1;
@@ -303,58 +290,30 @@ export function TreeCanvas({
       const box = layout.boxes.find((b) => b.person.id === id);
       if (box) origins.set(id, { x: box.x, y: box.y });
     }
-    const isTouch = event.pointerType === 'touch';
     interaction.current = {
       kind: 'card',
       ids,
       personId: person.id,
       sx: event.clientX,
       sy: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
       origins,
       moved: false,
-      armed: !isTouch,
+      draggable: event.pointerType !== 'touch' || mode === 'move',
     };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
       /* no active pointer */
     }
-    if (isTouch) {
-      clearLongPress();
-      longPress.current = window.setTimeout(() => {
-        const it = interaction.current;
-        if (it?.kind === 'card') {
-          // Snap the drag origin to where the finger is now so any drift during
-          // the hold doesn't make the card jump when the drag starts.
-          it.sx = it.lastX;
-          it.sy = it.lastY;
-          it.armed = true;
-          setArmedId(it.personId);
-          navigator.vibrate?.(30);
-        }
-      }, LONG_PRESS_MS);
-    }
   };
 
   const onCardPointerMove = (event: React.PointerEvent) => {
     const it = interaction.current;
-    if (it?.kind !== 'card') return;
-    it.lastX = event.clientX;
-    it.lastY = event.clientY;
-    const dist = Math.hypot(event.clientX - it.sx, event.clientY - it.sy);
-    // Before the touch drag is armed, tolerate finger jitter during the hold;
-    // only a clear swipe (a pan attempt) cancels the long-press. Too tight a
-    // threshold here makes the long-press impossible to trigger on a phone.
-    if (!it.armed) {
-      if (dist > 40) {
-        clearLongPress();
-        it.moved = true;
-      }
-      return;
+    if (it?.kind !== 'card' || !it.draggable) return;
+    if (!it.moved && Math.hypot(event.clientX - it.sx, event.clientY - it.sy) > 4) {
+      it.moved = true;
+      setDraggingId(it.personId);
     }
-    if (!it.moved && dist > 4) it.moved = true;
     if (!it.moved) return;
     const dx = (event.clientX - it.sx) / transform.scale;
     const dy = (event.clientY - it.sy) / transform.scale;
@@ -366,24 +325,20 @@ export function TreeCanvas({
   };
 
   const onCardPointerUp = () => {
-    clearLongPress();
-    setArmedId(null);
+    setDraggingId(null);
     const it = interaction.current;
     interaction.current = null;
     if (it?.kind !== 'card') return;
-    if (it.armed && it.moved) {
+    if (it.draggable && it.moved) {
       commit();
     } else if (!it.moved) {
-      // Quick tap (or an armed long-press with no drag) → select.
       setSelectedIds(new Set());
       onSelect(it.personId);
     }
-    // else: pre-arm swipe → do nothing.
   };
 
   const onCardPointerCancel = () => {
-    clearLongPress();
-    setArmedId(null);
+    setDraggingId(null);
     interaction.current = null;
   };
 
@@ -508,7 +463,7 @@ export function TreeCanvas({
         {layout.boxes.map(({ person, x, y }) => {
           const isSingle = person.id === selectedId;
           const inMarquee = selectedIds.has(person.id);
-          const isArmed = person.id === armedId;
+          const isDragging = person.id === draggingId;
           return (
             <div
               key={person.id}
@@ -526,13 +481,17 @@ export function TreeCanvas({
                 WebkitTouchCallout: 'none',
               }}
               className={`absolute flex touch-none select-none items-center gap-3 rounded-2xl border bg-white px-3 text-left shadow-sm transition-transform dark:bg-stone-800 ${
-                isArmed
+                mode === 'move' ? 'cursor-move' : ''
+              } ${
+                isDragging
                   ? 'z-10 scale-105 border-amber-500 shadow-xl ring-2 ring-amber-500'
                   : isSingle
                     ? 'border-amber-500 ring-2 ring-amber-500/40'
                     : inMarquee
                       ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-400/50 dark:bg-amber-950/40'
-                      : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
+                      : mode === 'move'
+                        ? 'border-amber-300 ring-1 ring-amber-300/50 dark:border-amber-700'
+                        : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
               }`}
             >
               <span
@@ -587,6 +546,15 @@ export function TreeCanvas({
           aria-label={t('panMode')}
         >
           <FontAwesomeIcon icon={icons.pan} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('move')}
+          className={toolButton(mode === 'move')}
+          title={t('moveMode')}
+          aria-label={t('moveMode')}
+        >
+          <FontAwesomeIcon icon={icons.move} />
         </button>
         <button
           type="button"
