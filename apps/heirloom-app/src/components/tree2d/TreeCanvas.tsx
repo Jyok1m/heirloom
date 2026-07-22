@@ -101,7 +101,7 @@ export function TreeCanvas({
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
-  const [mode, setMode] = useState<'pan' | 'move' | 'select'>('pan');
+  const [mode, setMode] = useState<'pan' | 'select'>('pan');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<{
     x: number;
@@ -300,7 +300,9 @@ export function TreeCanvas({
       sy: event.clientY,
       origins,
       moved: false,
-      draggable: event.pointerType !== 'touch' || mode === 'move',
+      // Drag is desktop-only: touch never moves cards (avoids the mobile
+      // gesture conflicts); a touch still taps to select and pans the canvas.
+      draggable: event.pointerType !== 'touch',
     };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -500,17 +502,13 @@ export function TreeCanvas({
                 WebkitTouchCallout: 'none',
               }}
               className={`absolute flex touch-none select-none items-center gap-3 rounded-2xl border bg-white px-3 text-left shadow-sm transition-transform dark:bg-stone-800 ${
-                mode === 'move' ? 'cursor-move' : ''
-              } ${
                 isDragging
                   ? 'z-10 scale-105 border-amber-500 shadow-xl ring-2 ring-amber-500'
                   : isSingle
                     ? 'border-amber-500 ring-2 ring-amber-500/40'
                     : inMarquee
                       ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-400/50 dark:bg-amber-950/40'
-                      : mode === 'move'
-                        ? 'border-amber-300 ring-1 ring-amber-300/50 dark:border-amber-700'
-                        : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
+                      : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
               }`}
             >
               <span
@@ -565,15 +563,6 @@ export function TreeCanvas({
           aria-label={t('panMode')}
         >
           <FontAwesomeIcon icon={icons.pan} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('move')}
-          className={toolButton(mode === 'move')}
-          title={t('moveMode')}
-          aria-label={t('moveMode')}
-        >
-          <FontAwesomeIcon icon={icons.move} />
         </button>
         <button
           type="button"
