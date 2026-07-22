@@ -14,7 +14,15 @@ import {
 import { fieldClass, smallButton } from '../components/tree-edit/ui';
 import { UnionPanel } from '../components/tree-edit/UnionPanel';
 import { TreeCanvas } from '../components/tree2d/TreeCanvas';
-import type { TreePerson, TreeUnion } from '../components/tree2d/layout';
+import {
+  CARD_H,
+  CARD_W,
+  GAP_X,
+  GEN_GAP,
+  type TreePerson,
+  type TreeUnion,
+} from '../components/tree2d/layout';
+import { usePositions } from '../components/tree2d/positions';
 import type { Sex } from '../generated/graphql';
 import { icons } from '../lib/icons';
 import { enumLabel, SEXES } from '../lib/genealogy';
@@ -124,6 +132,32 @@ export function TreeView() {
   const { message } = useNotify();
   const fail = () => message.error(t('forbidden'));
 
+  // Node positions are lifted here so both the canvas and the person panel
+  // share one store: a freshly created relative can be dropped next to its
+  // anchor instead of falling back to the auto-layout on the far side.
+  const pos = usePositions(id);
+
+  const REL_OFFSET = {
+    parent: { x: 0, y: -(CARD_H + GEN_GAP) },
+    child: { x: 0, y: CARD_H + GEN_GAP },
+    spouse: { x: CARD_W + GAP_X, y: 0 },
+    sibling: { x: CARD_W + GAP_X, y: 0 },
+  } as const;
+
+  // Place a new relative next to its anchor — but only if the anchor has been
+  // manually positioned. Otherwise the whole tree is still auto-laid-out and
+  // layoutTree already puts the newcomer in a coherent spot.
+  const placeRelative = (
+    anchorId: string,
+    newId: string,
+    relation: keyof typeof REL_OFFSET,
+  ) => {
+    const anchor = pos.positions.get(anchorId);
+    if (!anchor) return;
+    const off = REL_OFFSET[relation];
+    pos.place(newId, { x: anchor.x + off.x, y: anchor.y + off.y });
+  };
+
   // Bulk removal from the canvas marquee selection
   const removePersons = async (ids: string[]) => {
     try {
@@ -217,13 +251,16 @@ export function TreeView() {
           </div>
         ) : tree && tree.persons.length > 0 ? (
           <TreeCanvas
-            treeId={id}
             persons={tree.persons as TreePerson[]}
             unions={treeUnions}
             selectedId={panel?.kind === 'person' ? panel.id : null}
             selectedUnionId={panel?.kind === 'union' ? panel.id : null}
             isAdmin={isAdmin ?? false}
             onRemovePersons={removePersons}
+            positions={pos.positions}
+            move={pos.move}
+            commit={pos.commit}
+            reset={pos.reset}
             onSelect={(value) =>
               setPanel(value ? { kind: 'person', id: value } : null)
             }
@@ -279,6 +316,7 @@ export function TreeView() {
               onError={fail}
               onOpenUnion={(unionId) => setPanel({ kind: 'union', id: unionId })}
               onOpenPerson={(pid) => setPanel({ kind: 'person', id: pid })}
+              onPlaceRelative={placeRelative}
             />
           )}
           {panel.kind === 'union' && (

@@ -38,6 +38,7 @@ export function PersonPanel({
   onError,
   onOpenUnion,
   onOpenPerson,
+  onPlaceRelative,
 }: {
   personId: string;
   treeId: string;
@@ -47,6 +48,11 @@ export function PersonPanel({
   onError(): void;
   onOpenUnion(id: string): void;
   onOpenPerson(id: string): void;
+  onPlaceRelative(
+    anchorId: string,
+    newId: string,
+    relation: 'parent' | 'sibling' | 'spouse' | 'child',
+  ): void;
 }) {
   const { t, lang } = useI18n();
   const { confirm } = useNotify();
@@ -103,17 +109,23 @@ export function PersonPanel({
     return id;
   };
 
-  const runRelative = (build: () => Promise<string>) => {
+  const runRelative = (
+    relation: 'parent' | 'sibling' | 'spouse' | 'child',
+    build: () => Promise<string>,
+  ) => {
     if (relBusy) return;
     setRelBusy(true);
     build()
-      .then((newId) => onOpenPerson(newId))
+      .then((newId) => {
+        onPlaceRelative(person.id, newId, relation);
+        onOpenPerson(newId);
+      })
       .catch(fail)
       .finally(() => setRelBusy(false));
   };
 
   const addSpouse = () =>
-    runRelative(async () => {
+    runRelative('spouse', async () => {
       const spouseId = await blankPerson();
       const union = await createUnion({
         variables: { input: { treeId, type: 'MARRIAGE' } },
@@ -125,7 +137,7 @@ export function PersonPanel({
     });
 
   const addChildRelative = () =>
-    runRelative(async () => {
+    runRelative('child', async () => {
       const childId = await blankPerson();
       let unionId = person.unions[0]?.id;
       if (!unionId) {
@@ -140,7 +152,7 @@ export function PersonPanel({
     });
 
   const addParent = () =>
-    runRelative(async () => {
+    runRelative('parent', async () => {
       const parentId = await blankPerson();
       let unionId = person.parentUnions[0]?.id;
       if (!unionId) {
@@ -155,7 +167,7 @@ export function PersonPanel({
     });
 
   const addSibling = () =>
-    runRelative(async () => {
+    runRelative('sibling', async () => {
       const siblingId = await blankPerson();
       let unionId = person.parentUnions[0]?.id;
       if (!unionId) {

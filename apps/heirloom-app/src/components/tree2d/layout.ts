@@ -48,8 +48,8 @@ export type PositionOverrides = Map<string, { x: number; y: number }>;
 
 export const CARD_W = 178;
 export const CARD_H = 68;
-const GAP_X = 36;
-const GEN_GAP = 116;
+export const GAP_X = 36;
+export const GEN_GAP = 116;
 const PAD = 80;
 
 // Order a generation so partners sit next to each other, building spouse

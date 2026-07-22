@@ -43,6 +43,21 @@ export function usePositions(treeId: string) {
     [],
   );
 
+  // Set one node's position and persist immediately (programmatic placement,
+  // e.g. dropping a freshly created relative next to its anchor). No-op if the
+  // position is already exactly there.
+  const place = useCallback(
+    (id: string, pos: { x: number; y: number }) => {
+      setPositions((prev) => {
+        const next = new Map(prev);
+        next.set(id, pos);
+        save(treeId, next);
+        return next;
+      });
+    },
+    [treeId],
+  );
+
   // Commit the current positions to storage (on drag end)
   const commit = useCallback(() => {
     setPositions((prev) => {
@@ -64,5 +79,5 @@ export function usePositions(treeId: string) {
     [treeId],
   );
 
-  return { positions, move, commit, reset };
+  return { positions, move, place, commit, reset };
 }

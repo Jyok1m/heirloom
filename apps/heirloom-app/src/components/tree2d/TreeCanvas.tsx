@@ -7,10 +7,10 @@ import {
   CARD_H,
   CARD_W,
   layoutTree,
+  type PositionOverrides,
   type TreePerson,
   type TreeUnion,
 } from './layout';
-import { usePositions } from './positions';
 
 const SEX_ACCENT: Record<TreePerson['sex'], string> = {
   MALE: '#5f8a8f',
@@ -51,7 +51,6 @@ type Interaction =
     };
 
 export function TreeCanvas({
-  treeId,
   persons,
   unions,
   selectedId,
@@ -60,8 +59,11 @@ export function TreeCanvas({
   onSelectUnion,
   isAdmin,
   onRemovePersons,
+  positions,
+  move,
+  commit,
+  reset,
 }: {
-  treeId: string;
   persons: TreePerson[];
   unions: TreeUnion[];
   selectedId: string | null;
@@ -70,10 +72,13 @@ export function TreeCanvas({
   onSelectUnion: (id: string) => void;
   isAdmin: boolean;
   onRemovePersons: (ids: string[]) => Promise<void>;
+  positions: PositionOverrides;
+  move: (updates: Map<string, { x: number; y: number }>) => void;
+  commit: () => void;
+  reset: (ids: string[]) => void;
 }) {
   const { t } = useI18n();
   const { confirm } = useNotify();
-  const { positions, move, commit, reset } = usePositions(treeId);
   const layout = useMemo(
     () => layoutTree(persons, unions, positions),
     [persons, unions, positions],
