@@ -38,6 +38,9 @@ interface Transform {
 type Interaction =
   | { kind: 'pan'; sx: number; sy: number; ox: number; oy: number; moved: boolean }
   | { kind: 'marquee'; sx: number; sy: number }
+  // Two-finger pinch: anchor the world point under the initial midpoint (wx,wy)
+  // and scale relative to the initial finger distance.
+  | { kind: 'pinch'; startDist: number; startScale: number; wx: number; wy: number }
   | {
       kind: 'card';
       ids: string[];
@@ -98,6 +101,8 @@ export function TreeCanvas({
   } | null>(null);
   const [removing, setRemoving] = useState(false);
   const interaction = useRef<Interaction | null>(null);
+  // Active pointers that started on the background (for pan + pinch-zoom).
+  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
   const [fitted, setFitted] = useState(false);
 
   const fit = useCallback(() => {
@@ -150,6 +155,29 @@ export function TreeCanvas({
     const rect = el.getBoundingClientRect();
     const sx = event.clientX - rect.left;
     const sy = event.clientY - rect.top;
+    pointers.current.set(event.pointerId, { x: sx, y: sy });
+    try {
+      el.setPointerCapture(event.pointerId);
+    } catch {
+      /* no active pointer (synthetic event) */
+    }
+
+    // Second finger on the background → pinch-zoom (overrides any pan/marquee).
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      setMarquee(null);
+      interaction.current = {
+        kind: 'pinch',
+        startDist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+        startScale: transform.scale,
+        wx: (mx - transform.x) / transform.scale,
+        wy: (my - transform.y) / transform.scale,
+      };
+      return;
+    }
+
     if (mode === 'select' || event.shiftKey) {
       interaction.current = { kind: 'marquee', sx, sy };
       setMarquee({ x: sx, y: sy, w: 0, h: 0 });
@@ -163,17 +191,28 @@ export function TreeCanvas({
         moved: false,
       };
     }
-    try {
-      el.setPointerCapture(event.pointerId);
-    } catch {
-      /* no active pointer (synthetic event) */
-    }
   };
 
   const onBgPointerMove = (event: React.PointerEvent) => {
+    const el = viewportRef.current;
+    if (el && pointers.current.has(event.pointerId)) {
+      const rect = el.getBoundingClientRect();
+      pointers.current.set(event.pointerId, {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    }
     const it = interaction.current;
     if (!it) return;
-    if (it.kind === 'pan') {
+    if (it.kind === 'pinch') {
+      if (pointers.current.size < 2) return;
+      const [a, b] = [...pointers.current.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const scale = Math.min(2.4, Math.max(0.15, it.startScale * (dist / it.startDist)));
+      setTransform({ scale, x: mx - it.wx * scale, y: my - it.wy * scale });
+    } else if (it.kind === 'pan') {
       const dx = event.clientX - it.sx;
       const dy = event.clientY - it.sy;
       if (Math.hypot(dx, dy) > 3) it.moved = true;
@@ -191,8 +230,15 @@ export function TreeCanvas({
     }
   };
 
-  const onBgPointerUp = () => {
+  const onBgPointerUp = (event: React.PointerEvent) => {
+    pointers.current.delete(event.pointerId);
     const it = interaction.current;
+    // Keep pinch alive until fewer than two fingers remain; don't fall through
+    // to the marquee/pan/tap logic below.
+    if (it?.kind === 'pinch') {
+      if (pointers.current.size < 2) interaction.current = null;
+      return;
+    }
     interaction.current = null;
     if (it?.kind === 'marquee') {
       const m = marquee;
