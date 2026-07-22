@@ -68,6 +68,7 @@ export function TreeCanvas({
   reset,
   resetAll,
   readOnly = false,
+  mediaUrl = (id: string) => `/api/media/${id}/file`,
 }: {
   persons: TreePerson[];
   unions: TreeUnion[];
@@ -84,6 +85,8 @@ export function TreeCanvas({
   resetAll: () => void;
   // Public share view: pan/zoom + tap-to-inspect only, no editing gestures.
   readOnly?: boolean;
+  // Builds a profile-picture URL from a media id (differs on the public view).
+  mediaUrl?: (mediaId: string) => string;
 }) {
   const { t } = useI18n();
   const { confirm } = useNotify();
@@ -113,6 +116,9 @@ export function TreeCanvas({
     h: number;
   } | null>(null);
   const [removing, setRemoving] = useState(false);
+  // Photo ids whose image failed to load (missing file / non-image): fall back
+  // to the initials avatar instead of a broken-image glyph.
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set());
   const interaction = useRef<Interaction | null>(null);
   // Active pointers that started on the background (for pan + pinch-zoom).
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -515,17 +521,43 @@ export function TreeCanvas({
                       : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
               }`}
             >
-              <span
-                className="grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold text-white"
-                style={{ backgroundColor: SEX_ACCENT[person.sex] }}
-              >
-                {initials(person)}
+              <span className="relative shrink-0">
+                {person.photoMediaId &&
+                !failedPhotos.has(person.photoMediaId) ? (
+                  <img
+                    src={mediaUrl(person.photoMediaId)}
+                    alt=""
+                    draggable={false}
+                    onError={() =>
+                      setFailedPhotos((prev) =>
+                        new Set(prev).add(person.photoMediaId!),
+                      )
+                    }
+                    className="size-9 rounded-full object-cover"
+                  />
+                ) : (
+                  <span
+                    className="grid size-9 place-items-center rounded-full text-xs font-semibold text-white"
+                    style={{ backgroundColor: SEX_ACCENT[person.sex] }}
+                  >
+                    {initials(person)}
+                  </span>
+                )}
+                {person.deceased && (
+                  <span
+                    title={t('deceased')}
+                    aria-label={t('deceased')}
+                    className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-white text-stone-500 ring-1 ring-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:ring-stone-600"
+                  >
+                    <FontAwesomeIcon icon={icons.cross} className="text-[8px]" />
+                  </span>
+                )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="line-clamp-2 text-sm font-medium leading-tight text-stone-800 dark:text-stone-100">
                   {fullName(person)}
                 </span>
-                <span className="block text-[11px] text-stone-400 dark:text-stone-500">
+                <span className="flex items-center gap-1.5 text-[11px] text-stone-400 dark:text-stone-500">
                   <FontAwesomeIcon
                     icon={
                       person.sex === 'MALE'
@@ -535,6 +567,9 @@ export function TreeCanvas({
                           : icons.genderless
                     }
                   />
+                  {person.birthDate && (
+                    <span className="truncate">{person.birthDate}</span>
+                  )}
                 </span>
               </span>
             </div>

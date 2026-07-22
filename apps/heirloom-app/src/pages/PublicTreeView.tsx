@@ -107,6 +107,7 @@ export function PublicTreeView() {
             selectedUnionId={null}
             isAdmin={false}
             readOnly
+            mediaUrl={(id) => `/api/public/trees/${token}/media/${id}/file`}
             onRemovePersons={noopAsync}
             positions={NO_POSITIONS}
             move={noop}
@@ -146,6 +147,18 @@ export function PublicTreeView() {
           <p className="text-sm text-stone-500 dark:text-stone-400">
             {t('sexL')}: {enumLabel('sex', selected.sex, lang)}
           </p>
+          {selected.birthDate && (
+            <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+              <FontAwesomeIcon icon={icons.child} className="mr-1.5" />
+              {selected.birthDate}
+            </p>
+          )}
+          {selected.deceased && (
+            <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+              <FontAwesomeIcon icon={icons.cross} className="mr-1.5" />
+              {t('deceased')}
+            </p>
+          )}
         </aside>
       )}
     </main>

@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Pedigree, Sex } from '../../generated/graphql';
 import { enumLabel, PEDIGREES, SEXES } from '../../lib/genealogy';
 import { icons } from '../../lib/icons';
@@ -71,6 +71,8 @@ export function PersonPanel({
   const person = data?.person;
   const [form, setForm] = useState<Record<string, string> | null>(null);
   const [relBusy, setRelBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   if (!person) {
     return (
@@ -97,6 +99,37 @@ export function PersonPanel({
   const partnerCandidates = others.filter((p) => p.id !== person.id);
 
   const fail = () => onError();
+
+  // Profile picture: upload the file (REST), then point the person at it. The
+  // media isn't linked in the gallery — it's the dedicated avatar.
+  const uploadPhoto = async (file: File) => {
+    setPhotoBusy(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      body.append('treeId', treeId);
+      body.append('title', file.name);
+      const response = await fetch('/api/media/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body,
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const created = (await response.json()) as { id: string };
+      await updatePerson({
+        variables: { id: person.id, input: { photoMediaId: created.id } },
+      });
+    } catch {
+      fail();
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePhoto = () =>
+    void updatePerson({
+      variables: { id: person.id, input: { photoMediaId: null } },
+    }).catch(fail);
 
   // Composite relationship shortcuts: create a blank relative, wire it up,
   // then open its panel so the user can fill in the details.
@@ -190,6 +223,52 @@ export function PersonPanel({
 
   return (
     <div>
+      <div className="mb-4 flex flex-col items-center gap-1.5">
+        <button
+          type="button"
+          disabled={photoBusy}
+          onClick={() => photoInputRef.current?.click()}
+          aria-label={t('profilePhoto')}
+          title={t('profilePhoto')}
+          className="group relative size-20 overflow-hidden rounded-full ring-2 ring-amber-500/30 transition hover:ring-amber-500/60 disabled:opacity-60"
+        >
+          {person.photoMediaId ? (
+            <img
+              src={`/api/media/${person.photoMediaId}/file`}
+              alt=""
+              className="size-full object-cover"
+            />
+          ) : (
+            <span className="grid size-full place-items-center bg-amber-100 text-2xl text-amber-700 dark:bg-stone-800 dark:text-amber-300">
+              <FontAwesomeIcon icon={icons.user} />
+            </span>
+          )}
+          <span className="absolute inset-x-0 bottom-0 bg-black/45 py-1 text-center text-[11px] text-white opacity-0 transition group-hover:opacity-100">
+            <FontAwesomeIcon icon={photoBusy ? icons.seedling : icons.image} />
+          </span>
+        </button>
+        {person.photoMediaId && (
+          <button
+            type="button"
+            onClick={removePhoto}
+            className="text-xs text-stone-400 transition hover:text-red-600 dark:hover:text-red-400"
+          >
+            {t('removePhoto')}
+          </button>
+        )}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void uploadPhoto(file);
+            event.target.value = '';
+          }}
+        />
+      </div>
+
       <form
         className="flex flex-col gap-2"
         onSubmit={(event) => {

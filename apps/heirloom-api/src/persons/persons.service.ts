@@ -1,11 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { rethrowAsNotFound } from '../common/prisma-errors';
+import { MediaType } from '../generated/prisma/enums';
+import { MediaService } from '../media/media.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePersonInput, UpdatePersonInput } from './dto/person.inputs';
 
 @Injectable()
 export class PersonsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
 
   findAll(treeId: string, skip: number, take: number) {
     return this.prisma.person.findMany({
@@ -33,18 +42,68 @@ export class PersonsService {
   }
 
   async update(id: string, input: UpdatePersonInput) {
-    try {
-      return await this.prisma.person.update({ where: { id }, data: input });
-    } catch (error) {
-      rethrowAsNotFound(error, 'Person', id);
+    // Validate a new profile photo and remember the one it replaces so a
+    // now-unreferenced avatar can be cleaned up after the update.
+    let previousPhoto: string | null | undefined;
+    if (input.photoMediaId !== undefined) {
+      const person = await this.prisma.person.findUnique({
+        where: { id },
+        select: { treeId: true, photoMediaId: true },
+      });
+      if (!person) throw new NotFoundException(`Person ${id} not found`);
+      previousPhoto = person.photoMediaId;
+      if (input.photoMediaId) {
+        const media = await this.prisma.media.findUnique({
+          where: { id: input.photoMediaId },
+          select: { treeId: true, type: true },
+        });
+        if (
+          !media ||
+          media.treeId !== person.treeId ||
+          media.type !== MediaType.IMAGE
+        ) {
+          throw new BadRequestException(
+            'Profile photo must be an image belonging to the same tree',
+          );
+        }
+      }
     }
+
+    const updated = await this.prisma.person
+      .update({ where: { id }, data: input })
+      .catch((error): never => rethrowAsNotFound(error, 'Person', id));
+
+    if (previousPhoto && previousPhoto !== input.photoMediaId) {
+      await this.deleteMediaIfOrphan(previousPhoto);
+    }
+    return updated;
   }
 
   async delete(id: string) {
-    try {
-      return await this.prisma.person.delete({ where: { id } });
-    } catch (error) {
-      rethrowAsNotFound(error, 'Person', id);
+    const person = await this.prisma.person.findUnique({
+      where: { id },
+      select: { photoMediaId: true },
+    });
+    const deleted = await this.prisma.person
+      .delete({ where: { id } })
+      .catch((error): never => rethrowAsNotFound(error, 'Person', id));
+    if (person?.photoMediaId) {
+      await this.deleteMediaIfOrphan(person.photoMediaId);
+    }
+    return deleted;
+  }
+
+  // Removes an avatar media (row + file) once nothing references it — no gallery
+  // link and no other person using it as their photo. Best effort.
+  private async deleteMediaIfOrphan(mediaId: string): Promise<void> {
+    const [links, photoRefs] = await Promise.all([
+      this.prisma.mediaLink.count({ where: { mediaId } }),
+      this.prisma.person.count({ where: { photoMediaId: mediaId } }),
+    ]);
+    if (links === 0 && photoRefs === 0) {
+      await this.media.delete(mediaId).catch(() => {
+        /* already gone or referenced elsewhere: leave it */
+      });
     }
   }
 }

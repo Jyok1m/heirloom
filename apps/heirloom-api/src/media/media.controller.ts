@@ -19,6 +19,7 @@ import type { UserModel } from '../generated/prisma/models';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { MediaStorageService } from './media-storage.service';
 import { MediaService } from './media.service';
+import { setMediaServeHeaders } from './serve-headers';
 
 // File transfer stays on REST; everything else about media goes through GraphQL
 @Controller('api/media')
@@ -50,12 +51,18 @@ export class MediaController {
   }
 
   @Get(':id/file')
-  async serveFile(@Param('id') id: string, @Res() res: Response) {
+  async serveFile(
+    @CurrentUser() user: UserModel,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
     const media = await this.mediaService.findOne(id);
+    // Media files are tree-scoped: only members of the media's tree may read it
+    await this.access.assertView(user, media.treeId);
     if (!(await this.storage.exists(media.filePath))) {
       throw new NotFoundException(`File for media ${id} is missing on disk`);
     }
-    res.setHeader('Content-Type', media.mimeType);
+    setMediaServeHeaders(res, media.mimeType);
     res.sendFile(this.storage.absolutePath(media.filePath));
   }
 }

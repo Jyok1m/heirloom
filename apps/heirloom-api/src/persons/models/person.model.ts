@@ -33,6 +33,10 @@ export class Person {
   @Field(() => String, { nullable: true })
   notes!: string | null;
 
+  // Media id of the chosen profile picture, served via /api/media/:id/file
+  @Field(() => ID, { nullable: true })
+  photoMediaId!: string | null;
+
   @Field()
   createdAt!: Date;
 

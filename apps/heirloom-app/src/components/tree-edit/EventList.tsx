@@ -3,6 +3,8 @@ import { useMutation } from '@apollo/client/react';
 import { useState } from 'react';
 import {
   enumLabel,
+  gedcomToSortIso,
+  isoToGedcom,
   PERSON_EVENT_TYPES,
   UNION_EVENT_TYPES,
 } from '../../lib/genealogy';
@@ -58,10 +60,12 @@ function EventForm({
   const { t, lang } = useI18n();
   const types = ownerType === 'person' ? PERSON_EVENT_TYPES : UNION_EVENT_TYPES;
   const [type, setType] = useState(initial?.type ?? types[0]);
-  const [dateValue, setDateValue] = useState(initial?.dateValue ?? '');
-  const [dateSort, setDateSort] = useState(
+  // Calendar-driven date. Picking a day fills the GEDCOM value automatically;
+  // the optional text field then allows an approximate date ("ABT 1850").
+  const [date, setDate] = useState(
     typeof initial?.dateSort === 'string' ? initial.dateSort.slice(0, 10) : '',
   );
+  const [dateValue, setDateValue] = useState(initial?.dateValue ?? '');
   const [place, setPlace] = useState(initial?.place ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
@@ -71,10 +75,20 @@ function EventForm({
       className="flex flex-col gap-2 rounded-xl bg-amber-50/60 p-3 dark:bg-stone-800/60"
       onSubmit={(event) => {
         event.preventDefault();
+        // The calendar day is authoritative only while the GEDCOM value is an
+        // exact date (or empty). Once it's approximate ("ABT 1850") — including
+        // a stale day pre-filled when editing — derive the sort key from the
+        // text so re-editing the approximation reorders the event correctly.
+        const exactDate = /^\d{1,2} [A-Z]{3} \d{4}$/.test(dateValue);
         onSubmit({
           type,
           dateValue: dateValue || null,
-          dateSort: dateSort ? new Date(dateSort).toISOString() : null,
+          dateSort:
+            date && (exactDate || !dateValue)
+              ? new Date(date).toISOString()
+              : dateValue
+                ? gedcomToSortIso(dateValue)
+                : null,
           place: place || null,
           description: description || null,
           notes: notes || null,
@@ -103,16 +117,21 @@ function EventForm({
         />
       )}
       <input
-        placeholder={t('dateValueL')}
-        value={dateValue}
-        onChange={(e) => setDateValue(e.target.value)}
+        type="date"
+        aria-label={t('dateL')}
+        value={date}
+        onChange={(e) => {
+          const value = e.target.value;
+          setDate(value);
+          // Auto-fill the GEDCOM date from the picked day
+          if (value) setDateValue(isoToGedcom(value) ?? '');
+        }}
         className={fieldClass}
       />
       <input
-        type="date"
-        aria-label={t('dateSortL')}
-        value={dateSort}
-        onChange={(e) => setDateSort(e.target.value)}
+        placeholder={t('dateApproxL')}
+        value={dateValue}
+        onChange={(e) => setDateValue(e.target.value)}
         className={fieldClass}
       />
       <input

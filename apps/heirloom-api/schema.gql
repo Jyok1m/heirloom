@@ -189,7 +189,9 @@ enum Pedigree {
 }
 
 type Person {
+  birthDate: String
   createdAt: DateTime!
+  deceased: Boolean!
   events: [Event!]!
   firstName: String
   gedcomId: String
@@ -201,6 +203,7 @@ type Person {
   nickname: String
   notes: String
   parentUnions: [Union!]!
+  photoMediaId: ID
   sex: Sex!
   treeId: ID!
   unions: [Union!]!
@@ -317,6 +320,7 @@ input UpdatePersonInput {
   nameSuffix: String
   nickname: String
   notes: String
+  photoMediaId: ID
   sex: Sex
 }
 

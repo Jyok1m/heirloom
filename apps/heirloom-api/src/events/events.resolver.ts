@@ -8,11 +8,19 @@ import {
   Resolver,
 } from '@nestjs/graphql';
 import { EntityLoaders } from '../common/dataloaders/entity-loaders';
+import { EventType } from '../generated/prisma/enums';
 import { Person } from '../persons/models/person.model';
 import { Union } from '../relationships/models/union.model';
 import { CreateEventInput, UpdateEventInput } from './dto/event.inputs';
 import { EventsService } from './events.service';
 import { Event } from './models/event.model';
+
+// Events that establish a person is deceased (GEDCOM DEAT/BURI/CREM)
+const DEATH_TYPES: EventType[] = [
+  EventType.DEATH,
+  EventType.BURIAL,
+  EventType.CREMATION,
+];
 
 @Resolver(() => Event)
 export class EventsResolver {
@@ -62,6 +70,20 @@ export class PersonEventsResolver {
   @ResolveField(() => [Event])
   events(@Parent() person: Person) {
     return this.loaders.eventsByPersonId.load(person.id);
+  }
+
+  // Verbatim GEDCOM birth date for the card (from the BIRTH event, if any)
+  @ResolveField(() => String, { nullable: true })
+  async birthDate(@Parent() person: Person): Promise<string | null> {
+    const events = await this.loaders.eventsByPersonId.load(person.id);
+    return events.find((e) => e.type === EventType.BIRTH)?.dateValue ?? null;
+  }
+
+  // Card marker: true once a death/burial/cremation event is recorded
+  @ResolveField(() => Boolean)
+  async deceased(@Parent() person: Person): Promise<boolean> {
+    const events = await this.loaders.eventsByPersonId.load(person.id);
+    return events.some((e) => DEATH_TYPES.includes(e.type));
   }
 }
 

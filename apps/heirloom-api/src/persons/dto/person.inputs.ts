@@ -50,8 +50,15 @@ export class CreatePersonInput {
   notes?: string;
 }
 
-// treeId is immutable: a person never moves to another tree
+// treeId is immutable: a person never moves to another tree. photoMediaId is
+// update-only (a new person has no photo): null clears it, a value must be a
+// UUID, and the scalar FK keeps the Prisma update on the unchecked path.
 @InputType()
 export class UpdatePersonInput extends PartialType(
   OmitType(CreatePersonInput, ['treeId'] as const),
-) {}
+) {
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  photoMediaId?: string | null;
+}

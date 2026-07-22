@@ -1,6 +1,9 @@
-import { Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 import { Public, Roles } from '../auth/decorators';
+import { MediaStorageService } from '../media/media-storage.service';
+import { setMediaServeHeaders } from '../media/serve-headers';
 import { TreesService } from './trees.service';
 
 // Admin-only management of a tree's public read-only share link.
@@ -51,11 +54,27 @@ export class TreeSharingController {
 // Public, unauthenticated read-only access to a shared tree.
 @Controller('api/public/trees')
 export class PublicTreeController {
-  constructor(private readonly treesService: TreesService) {}
+  constructor(
+    private readonly treesService: TreesService,
+    private readonly storage: MediaStorageService,
+  ) {}
 
   @Public()
   @Get(':token')
   getSharedTree(@Param('token') token: string) {
     return this.treesService.publicSnapshot(token);
+  }
+
+  // Profile pictures for the public card view; scoped to the shared tree.
+  @Public()
+  @Get(':token/media/:mediaId/file')
+  async getSharedMedia(
+    @Param('token') token: string,
+    @Param('mediaId') mediaId: string,
+    @Res() res: Response,
+  ) {
+    const media = await this.treesService.sharedMediaFile(token, mediaId);
+    setMediaServeHeaders(res, media.mimeType);
+    res.sendFile(this.storage.absolutePath(media.filePath));
   }
 }

@@ -102,3 +102,28 @@ export function enumLabel(
   return GROUPS[group][value]?.[lang] ?? value;
 }
 
+// ------------------------------------------------------------------- GEDCOM dates
+
+const GEDCOM_MONTHS = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+] as const;
+
+// 'YYYY-MM-DD' (from a calendar picker) -> GEDCOM date 'DD MON YYYY'.
+// Built from the string parts so no timezone shift can move the day.
+export function isoToGedcom(iso: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const monthName = GEDCOM_MONTHS[Number(month) - 1];
+  if (!monthName) return null;
+  return `${Number(day)} ${monthName} ${year}`;
+}
+
+// Best-effort sortable date from a GEDCOM value: pull the first 4-digit year so
+// approximate dates ('ABT 1850') still order roughly right. Returns an ISO date.
+export function gedcomToSortIso(value: string): string | null {
+  const year = /\b(\d{4})\b/.exec(value)?.[1];
+  return year ? `${year}-01-01T00:00:00.000Z` : null;
+}
+

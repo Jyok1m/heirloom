@@ -1,9 +1,16 @@
 import { randomBytes } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { rethrowAsNotFound } from '../common/prisma-errors';
+import { EventType, MediaType } from '../generated/prisma/enums';
 import { MediaStorageService } from '../media/media-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTreeInput, UpdateTreeInput } from './dto/tree.inputs';
+
+const DEATH_TYPES: EventType[] = [
+  EventType.DEATH,
+  EventType.BURIAL,
+  EventType.CREMATION,
+];
 
 @Injectable()
 export class TreesService {
@@ -60,7 +67,14 @@ export class TreesService {
         id: true,
         name: true,
         persons: {
-          select: { id: true, firstName: true, lastName: true, sex: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            sex: true,
+            photoMediaId: true,
+            events: { select: { type: true, dateValue: true } },
+          },
         },
         unions: {
           select: {
@@ -75,13 +89,36 @@ export class TreesService {
     return {
       id: tree.id,
       name: tree.name,
-      persons: tree.persons,
+      persons: tree.persons.map(({ events, ...person }) => ({
+        ...person,
+        birthDate:
+          events.find((e) => e.type === EventType.BIRTH)?.dateValue ?? null,
+        deceased: events.some((e) => DEATH_TYPES.includes(e.type)),
+      })),
       unions: tree.unions.map((union) => ({
         id: union.id,
         partnerIds: union.partners.map((partner) => partner.personId),
         childIds: union.children.map((child) => child.personId),
       })),
     };
+  }
+
+  // Serves a shared tree's profile picture without auth. Bounded to IMAGE
+  // media of the tree the share token points to — no other files are exposed.
+  async sharedMediaFile(token: string, mediaId: string) {
+    const tree = await this.prisma.tree.findUnique({
+      where: { publicShareToken: token },
+      select: { id: true },
+    });
+    if (!tree) throw new NotFoundException('Shared tree not found');
+    const media = await this.prisma.media.findFirst({
+      where: { id: mediaId, treeId: tree.id, type: MediaType.IMAGE },
+      select: { filePath: true, mimeType: true },
+    });
+    if (!media || !(await this.mediaStorage.exists(media.filePath))) {
+      throw new NotFoundException('Media not found');
+    }
+    return media;
   }
 
   async getShareToken(treeId: string): Promise<string | null> {

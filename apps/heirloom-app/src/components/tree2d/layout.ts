@@ -7,6 +7,10 @@ export interface TreePerson {
   firstName: string | null;
   lastName: string | null;
   sex: 'MALE' | 'FEMALE' | 'OTHER' | 'UNKNOWN';
+  // Card extras (optional so callers can omit them)
+  photoMediaId?: string | null;
+  birthDate?: string | null;
+  deceased?: boolean | null;
 }
 
 export interface TreeUnion {

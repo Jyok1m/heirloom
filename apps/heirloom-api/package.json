@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
+    "schema:generate": "nest build && node dist/generate-schema.js",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "db:generate": "prisma generate",

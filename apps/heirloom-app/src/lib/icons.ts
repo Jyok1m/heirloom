@@ -83,6 +83,8 @@ export const icons = {
   marquee: faObjectGroup,
   expand: faExpand,
   eye: faEye,
+  cross: faCross,
+  image: faImage,
   sitemap: faSitemap,
   userPlus: faUserPlus,
   parent: faUser,

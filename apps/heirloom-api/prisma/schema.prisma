@@ -170,6 +170,11 @@ model Person {
   sex        Sex     @default(UNKNOWN)
   notes      String?
 
+  // Chosen profile picture. FK to a Media of the same tree; cleared (SetNull)
+  // if that media is deleted. The card shows it in place of the initials.
+  photoMediaId String?
+  photo        Media?  @relation("PersonPhoto", fields: [photoMediaId], references: [id], onDelete: SetNull)
+
   events       Event[]
   unions       UnionPartner[]
   parentLinks  ChildInUnion[]
@@ -179,6 +184,7 @@ model Person {
 
   @@unique([treeId, gedcomId])
   @@index([treeId, lastName, firstName])
+  @@index([photoMediaId])
 }
 
 // GEDCOM FAM record. Partners via UnionPartner (no husband/wife columns:
@@ -312,6 +318,8 @@ model Media {
   notes     String?
 
   links     MediaLink[]
+  // Persons using this media as their profile picture (see Person.photo)
+  profileOf Person[]    @relation("PersonPhoto")
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 

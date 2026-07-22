@@ -173,6 +173,12 @@ const translations = {
       'Disable the public link? Anyone using it will lose access.',
     inviteContributor: 'Invite a contributor',
     contributorInviteHint: 'They create an account and can add to and edit the tree.',
+    // Card & photos
+    profilePhoto: 'Profile photo',
+    removePhoto: 'Remove photo',
+    deceased: 'Deceased',
+    dateL: 'Date',
+    dateApproxL: 'Approximate date (e.g. ABT 1850)',
   },
   fr: {
     tagline: 'Votre histoire familiale, sur votre propre serveur.',
@@ -339,6 +345,12 @@ const translations = {
     inviteContributor: 'Inviter un contributeur',
     contributorInviteHint:
       'La personne crée un compte et peut enrichir et modifier l’arbre.',
+    // Carte & photos
+    profilePhoto: 'Photo de profil',
+    removePhoto: 'Retirer la photo',
+    deceased: 'Décédé·e',
+    dateL: 'Date',
+    dateApproxL: 'Date approximative (ex. ABT 1850)',
   },
 } as const;
 

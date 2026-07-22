@@ -11,6 +11,9 @@ export const TREE_CANVAS = graphql(`
         firstName
         lastName
         sex
+        photoMediaId
+        birthDate
+        deceased
       }
       unions {
         id
@@ -40,6 +43,7 @@ export const PERSON_DETAIL = graphql(`
       nickname
       sex
       notes
+      photoMediaId
       events {
         id
         type
