@@ -383,9 +383,16 @@ export function TreeCanvas({
   return (
     <div
       ref={viewportRef}
-      className={`relative h-full w-full touch-none overflow-hidden ${
+      className={`relative h-full w-full touch-none select-none overflow-hidden ${
         mode === 'select' ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'
       }`}
+      // Guaranteed non-selection for the whole canvas: on iOS a touch drag over
+      // the cards otherwise starts a text selection that kills the gesture.
+      style={{
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+      }}
       onPointerDown={onBgPointerDown}
       onPointerMove={onBgPointerMove}
       onPointerUp={onBgPointerUp}
