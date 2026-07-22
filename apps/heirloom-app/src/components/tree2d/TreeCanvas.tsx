@@ -29,6 +29,10 @@ function fullName(person: TreePerson): string {
   return [person.firstName, person.lastName].filter(Boolean).join(' ') || '—';
 }
 
+// Touch drag is armed by a long-press (a plain touch pans/taps). Mouse/pen drag
+// immediately. 500ms feels responsive; bump toward 2000 for a more deliberate hold.
+const LONG_PRESS_MS = 500;
+
 interface Transform {
   x: number;
   y: number;
@@ -44,10 +48,13 @@ type Interaction =
   | {
       kind: 'card';
       ids: string[];
+      personId: string;
       sx: number;
       sy: number;
       origins: Map<string, { x: number; y: number }>;
       moved: boolean;
+      // Touch: the drag only starts once the long-press timer arms it.
+      armed: boolean;
     };
 
 export function TreeCanvas({
@@ -108,7 +115,17 @@ export function TreeCanvas({
   const interaction = useRef<Interaction | null>(null);
   // Active pointers that started on the background (for pan + pinch-zoom).
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  // Pending long-press timer + the card it will arm (for the visual cue).
+  const longPress = useRef<number | null>(null);
+  const [armedId, setArmedId] = useState<string | null>(null);
   const [fitted, setFitted] = useState(false);
+
+  const clearLongPress = () => {
+    if (longPress.current !== null) {
+      clearTimeout(longPress.current);
+      longPress.current = null;
+    }
+  };
 
   const fit = useCallback(() => {
     const el = viewportRef.current;
@@ -273,6 +290,8 @@ export function TreeCanvas({
   };
 
   // --- card drag ---
+  // Mouse/pen drag immediately; touch arms the drag after a long-press so a
+  // plain touch still taps (select) and a swipe doesn't yank the card.
   const onCardPointerDown = (person: TreePerson, event: React.PointerEvent) => {
     event.stopPropagation();
     const inSelection = selectedIds.has(person.id) && selectedIds.size > 1;
@@ -282,27 +301,49 @@ export function TreeCanvas({
       const box = layout.boxes.find((b) => b.person.id === id);
       if (box) origins.set(id, { x: box.x, y: box.y });
     }
+    const isTouch = event.pointerType === 'touch';
     interaction.current = {
       kind: 'card',
       ids,
+      personId: person.id,
       sx: event.clientX,
       sy: event.clientY,
       origins,
       moved: false,
+      armed: !isTouch,
     };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
       /* no active pointer */
     }
+    if (isTouch) {
+      clearLongPress();
+      longPress.current = window.setTimeout(() => {
+        const it = interaction.current;
+        if (it?.kind === 'card') {
+          it.armed = true;
+          setArmedId(it.personId);
+          navigator.vibrate?.(30);
+        }
+      }, LONG_PRESS_MS);
+    }
   };
 
   const onCardPointerMove = (event: React.PointerEvent) => {
     const it = interaction.current;
     if (it?.kind !== 'card') return;
-    if (!it.moved && Math.hypot(event.clientX - it.sx, event.clientY - it.sy) > 4) {
-      it.moved = true;
+    const dist = Math.hypot(event.clientX - it.sx, event.clientY - it.sy);
+    // Before the touch drag is armed, any real movement is a swipe/pan attempt:
+    // cancel the pending long-press and don't drag or select on release.
+    if (!it.armed) {
+      if (dist > 10) {
+        clearLongPress();
+        it.moved = true;
+      }
+      return;
     }
+    if (!it.moved && dist > 4) it.moved = true;
     if (!it.moved) return;
     const dx = (event.clientX - it.sx) / transform.scale;
     const dy = (event.clientY - it.sy) / transform.scale;
@@ -313,16 +354,26 @@ export function TreeCanvas({
     move(updates);
   };
 
-  const onCardPointerUp = (person: TreePerson) => {
+  const onCardPointerUp = () => {
+    clearLongPress();
+    setArmedId(null);
     const it = interaction.current;
     interaction.current = null;
     if (it?.kind !== 'card') return;
-    if (it.moved) {
+    if (it.armed && it.moved) {
       commit();
-    } else {
+    } else if (!it.moved) {
+      // Quick tap (or an armed long-press with no drag) → select.
       setSelectedIds(new Set());
-      onSelect(person.id);
+      onSelect(it.personId);
     }
+    // else: pre-arm swipe → do nothing.
+  };
+
+  const onCardPointerCancel = () => {
+    clearLongPress();
+    setArmedId(null);
+    interaction.current = null;
   };
 
   const removeSelected = () => {
@@ -446,6 +497,7 @@ export function TreeCanvas({
         {layout.boxes.map(({ person, x, y }) => {
           const isSingle = person.id === selectedId;
           const inMarquee = selectedIds.has(person.id);
+          const isArmed = person.id === armedId;
           return (
             <div
               key={person.id}
@@ -453,14 +505,17 @@ export function TreeCanvas({
               tabIndex={0}
               onPointerDown={(event) => onCardPointerDown(person, event)}
               onPointerMove={onCardPointerMove}
-              onPointerUp={() => onCardPointerUp(person)}
+              onPointerUp={onCardPointerUp}
+              onPointerCancel={onCardPointerCancel}
               style={{ left: x, top: y, width: CARD_W, height: CARD_H }}
-              className={`absolute flex touch-none select-none items-center gap-3 rounded-2xl border bg-white px-3 text-left shadow-sm transition-colors dark:bg-stone-800 ${
-                isSingle
-                  ? 'border-amber-500 ring-2 ring-amber-500/40'
-                  : inMarquee
-                    ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-400/50 dark:bg-amber-950/40'
-                    : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
+              className={`absolute flex touch-none select-none items-center gap-3 rounded-2xl border bg-white px-3 text-left shadow-sm transition-transform dark:bg-stone-800 ${
+                isArmed
+                  ? 'z-10 scale-105 border-amber-500 shadow-xl ring-2 ring-amber-500'
+                  : isSingle
+                    ? 'border-amber-500 ring-2 ring-amber-500/40'
+                    : inMarquee
+                      ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-400/50 dark:bg-amber-950/40'
+                      : 'border-stone-200 hover:border-amber-300 dark:border-stone-700'
               }`}
             >
               <span

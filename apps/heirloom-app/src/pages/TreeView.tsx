@@ -208,8 +208,8 @@ export function TreeView() {
     <main className="relative flex-1">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3">
         <Link to="/trees" className={headerButton}>
-          <FontAwesomeIcon icon={icons.arrowLeft} className="mr-1.5" />
-          {t('backToTrees')}
+          <FontAwesomeIcon icon={icons.arrowLeft} className="sm:mr-1.5" />
+          <span className="hidden sm:inline">{t('backToTrees')}</span>
         </Link>
         <h1 className="font-display text-lg font-semibold text-stone-800 dark:text-stone-100">
           {tree?.name ?? '…'}
@@ -220,8 +220,8 @@ export function TreeView() {
             onClick={() => setPanel({ kind: 'sources' })}
             className={headerButton}
           >
-            <FontAwesomeIcon icon={icons.book} className="mr-1.5" />
-            {t('sourcesTitle')}
+            <FontAwesomeIcon icon={icons.book} className="sm:mr-1.5" />
+            <span className="hidden sm:inline">{t('sourcesTitle')}</span>
           </button>
           {isAdmin && (
             <button
@@ -229,17 +229,17 @@ export function TreeView() {
               onClick={() => setPanel({ kind: 'members' })}
               className={headerButton}
             >
-              <FontAwesomeIcon icon={icons.users} className="mr-1.5" />
-              {t('membersTitle')}
+              <FontAwesomeIcon icon={icons.users} className="sm:mr-1.5" />
+              <span className="hidden sm:inline">{t('membersTitle')}</span>
             </button>
           )}
           <button
             type="button"
             onClick={() => setPanel({ kind: 'add' })}
-            className="pointer-events-auto rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-4 py-1.5 text-sm font-medium text-white shadow-md transition hover:from-amber-500 hover:to-amber-600"
+            className="pointer-events-auto rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-3 py-1.5 text-sm font-medium text-white shadow-md transition hover:from-amber-500 hover:to-amber-600 sm:px-4"
           >
-            <FontAwesomeIcon icon={icons.plus} className="mr-1.5" />
-            {t('addPerson')}
+            <FontAwesomeIcon icon={icons.plus} className="sm:mr-1.5" />
+            <span className="hidden sm:inline">{t('addPerson')}</span>
           </button>
         </div>
       </div>
