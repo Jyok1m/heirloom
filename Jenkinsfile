@@ -56,12 +56,28 @@ pipeline {
                         returnStdout: true,
                     ).trim()
 
-                    // Compare against the previous commit; on a shallow/first build
-                    // (no parent), rebuild everything to stay safe.
-                    def prev = sh(
-                        script: 'git rev-parse --verify --quiet HEAD~1 || true',
-                        returnStdout: true,
-                    ).trim()
+                    // Baseline for change detection: the last SUCCESSFULLY built
+                    // commit, not HEAD~1. A push can carry several commits at once
+                    // (e.g. a migration commit + front-end commits on top); diffing
+                    // only HEAD~1 would miss the migration. Fall back to HEAD~1, then
+                    // to a full rebuild, when no usable baseline is reachable.
+                    def prev = ''
+                    def lastGood = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT?.trim()
+                    if (lastGood) {
+                        // Guard: the ref must exist in the fetched history and be an
+                        // ancestor of HEAD (force-push / rebase can invalidate it).
+                        def ok = sh(
+                            script: "git cat-file -e ${lastGood}^{commit} 2>/dev/null && git merge-base --is-ancestor ${lastGood} HEAD && echo yes || true",
+                            returnStdout: true,
+                        ).trim()
+                        if (ok == 'yes' && lastGood != env.GIT_SHA) { prev = lastGood }
+                    }
+                    if (!prev) {
+                        prev = sh(
+                            script: 'git rev-parse --verify --quiet HEAD~1 || true',
+                            returnStdout: true,
+                        ).trim()
+                    }
 
                     def files
                     if (params.FORCE_BUILD) {
@@ -69,6 +85,7 @@ pipeline {
                         files = ['__ALL__']
                         echo 'FORCE_BUILD set — building both apps.'
                     } else if (prev) {
+                        echo "Diffing against baseline ${prev}"
                         files = sh(
                             script: "git diff --name-only ${prev} HEAD",
                             returnStdout: true,
@@ -87,7 +104,15 @@ pipeline {
                     env.BUILD_API = (shared || files.any { it.startsWith('apps/heirloom-api/') }) ? 'true' : 'false'
                     env.BUILD_APP = (shared || files.any { it.startsWith('apps/heirloom-app/') }) ? 'true' : 'false'
 
-                    echo "commit=${env.GIT_SHA}  build-api=${env.BUILD_API}  build-app=${env.BUILD_APP}"
+                    // Run migrations only when a Prisma migration is actually added.
+                    // This is a subset of BUILD_API (migrations live under the API dir),
+                    // so the migrate image is always freshly built before it runs.
+                    env.RUN_MIGRATE = (
+                        files.contains('__ALL__') ||
+                        files.any { it.startsWith('apps/heirloom-api/prisma/migrations/') }
+                    ) ? 'true' : 'false'
+
+                    echo "commit=${env.GIT_SHA}  build-api=${env.BUILD_API}  build-app=${env.BUILD_APP}  migrate=${env.RUN_MIGRATE}"
                     if (env.BUILD_API == 'false' && env.BUILD_APP == 'false') {
                         echo 'No app changes — nothing to build or deploy.'
                     }
@@ -181,13 +206,13 @@ pipeline {
                     ),
                 ]) {
                     script {
-                        // Only pull/restart what changed. Migrations run when the API changed.
+                        // Only pull/restart what changed. RUN_MIGRATE is decided in the
+                        // 'Detect changes' stage (a new Prisma migration was added).
                         // Service names match docker-compose.prod.yml (and the nginx upstream `api`).
                         def services = []
                         if (env.BUILD_API == 'true') { services << 'api' }
                         if (env.BUILD_APP == 'true') { services << 'app' }
                         env.SERVICES = services.join(' ')
-                        env.RUN_MIGRATE = env.BUILD_API
                     }
                     // Remote script passed as a single SSH argument (not a heredoc:
                     // its terminator is indentation-sensitive and breaks easily).
