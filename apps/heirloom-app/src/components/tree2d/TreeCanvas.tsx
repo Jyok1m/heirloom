@@ -491,24 +491,38 @@ export function TreeCanvas({
               </g>
             );
           })}
-          {layout.unions.map(({ union, x, y }) =>
-            union.partnerIds.length >= 1 ? (
-              <circle
-                key={union.id}
-                cx={x}
-                cy={y}
-                r={union.id === selectedUnionId ? 8 : 5}
-                className={
-                  union.id === selectedUnionId
-                    ? 'fill-amber-500 stroke-amber-300'
-                    : union.dissolved
-                      ? 'fill-stone-400'
-                      : 'fill-amber-500'
-                }
-                strokeWidth={3}
-              />
-            ) : null,
-          )}
+          {layout.unions.map(({ union, x, y }) => {
+            if (union.partnerIds.length < 1) return null;
+            const year = union.date?.match(/\d{4}/)?.[0];
+            return (
+              <g key={union.id}>
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={union.id === selectedUnionId ? 8 : 5}
+                  className={
+                    union.id === selectedUnionId
+                      ? 'fill-amber-500 stroke-amber-300'
+                      : union.dissolved
+                        ? 'fill-stone-400'
+                        : 'fill-amber-500'
+                  }
+                  strokeWidth={3}
+                />
+                {year && (
+                  <text
+                    x={x}
+                    y={y + 16}
+                    textAnchor="middle"
+                    className="fill-stone-400 dark:fill-stone-500"
+                    style={{ fontSize: 11, fontWeight: 600 }}
+                  >
+                    {year}
+                  </text>
+                )}
+              </g>
+            );
+          })}
         </svg>
 
         {layout.unions.map(({ union, x, y }) =>

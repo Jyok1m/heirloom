@@ -7,7 +7,6 @@ import type { TreePerson, TreeUnion } from './layout';
 
 const R0 = 52; // focus half-disc radius
 const RING = 60; // width of each generation ring
-const MAX_GEN = 5; // rings drawn (deeper ancestors are omitted)
 const PAD = 16;
 
 const ACCENT: Record<string, string> = {
@@ -45,12 +44,14 @@ export function FanChart({
   unions,
   focusId,
   onFocus,
+  maxGen = 4,
   mediaUrl = (id) => `/api/media/${id}/file`,
 }: {
   persons: TreePerson[];
   unions: TreeUnion[];
   focusId: string;
   onFocus: (id: string) => void;
+  maxGen?: number;
   mediaUrl?: (mediaId: string) => string;
 }) {
   const byId = useMemo(
@@ -79,7 +80,7 @@ export function FanChart({
       return [father, mother];
     };
     const rows: (TreePerson | null)[][] = [[byId.get(focusId) ?? null]];
-    for (let g = 1; g <= MAX_GEN; g++) {
+    for (let g = 1; g <= maxGen; g++) {
       const row: (TreePerson | null)[] = [];
       for (const cell of rows[g - 1]) {
         if (!cell) row.push(null, null);
@@ -91,20 +92,22 @@ export function FanChart({
       rows.push(row);
     }
     return rows;
-  }, [byId, parentUnion, focusId]);
+  }, [byId, parentUnion, focusId, maxGen]);
 
-  const R = R0 + MAX_GEN * RING;
+  const R = R0 + maxGen * RING;
   const cx = R + PAD;
   const cy = R + PAD;
   const width = 2 * R + 2 * PAD;
-  const height = R + R0 + 2 * PAD;
+  // The fan is the upper semicircle, so it only needs half the height (+ a
+  // little below the centre for the focus label).
+  const height = R + 2 * PAD;
 
   const focus = gens[0][0];
 
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="h-full w-full"
+      className="block h-full w-full"
       preserveAspectRatio="xMidYMid meet"
     >
       {/* Ancestor rings */}
@@ -131,7 +134,7 @@ export function FanChart({
               <path
                 d={sectorPath(cx, cy, rInner, rOuter, a0, a1)}
                 fill={cell ? accent : 'transparent'}
-                fillOpacity={cell ? 0.16 : 0}
+                fillOpacity={cell ? 0.24 : 0}
                 className="stroke-white dark:stroke-stone-900"
                 strokeWidth={2}
                 style={cell ? { cursor: 'pointer' } : undefined}

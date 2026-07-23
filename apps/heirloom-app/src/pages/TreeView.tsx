@@ -186,6 +186,7 @@ export function TreeView() {
         id: union.id,
         type: union.type,
         dissolved: union.dissolved,
+        date: union.date,
         partnerIds: union.partners.map((p) => p.id),
         childIds: union.children.map((c) => c.person.id),
       })) ?? [],
@@ -210,12 +211,59 @@ export function TreeView() {
   // Classic tree vs radial fan (ancestors) view.
   const [view, setView] = useState<'tree' | 'fan'>('tree');
   const [fanFocusId, setFanFocusId] = useState<string | null>(null);
+
+  // Default the fan to the person with the deepest known ancestry, so it isn't
+  // empty (a random root person would have no ancestors to fan out).
+  const deepestId = useMemo(() => {
+    const parents = new Map<string, string[]>();
+    for (const u of treeUnions) {
+      for (const c of u.childIds) {
+        parents.set(c, [...(parents.get(c) ?? []), ...u.partnerIds]);
+      }
+    }
+    const memo = new Map<string, number>();
+    const depth = (id: string): number => {
+      const cached = memo.get(id);
+      if (cached !== undefined) return cached;
+      memo.set(id, 0); // guard against cycles
+      const ps = parents.get(id) ?? [];
+      const d = ps.length ? 1 + Math.max(...ps.map(depth)) : 0;
+      memo.set(id, d);
+      return d;
+    };
+    let best: string | null = null;
+    let bestDepth = -1;
+    for (const p of tree?.persons ?? []) {
+      const d = depth(p.id);
+      if (d > bestDepth) {
+        bestDepth = d;
+        best = p.id;
+      }
+    }
+    return best;
+  }, [tree, treeUnions]);
+
   const fanFocus =
     fanFocusId ??
     (panel?.kind === 'person' ? panel.id : null) ??
-    selfId ??
+    deepestId ??
     tree?.persons[0]?.id ??
     null;
+
+  // Fan navigation: how many generations to show, and a focus history for "back".
+  const [fanGen, setFanGen] = useState(4);
+  const [fanHistory, setFanHistory] = useState<string[]>([]);
+  const focusFan = (id: string) => {
+    if (fanFocus && fanFocus !== id) setFanHistory((h) => [...h, fanFocus]);
+    setFanFocusId(id);
+  };
+  const fanBack = () => {
+    setFanHistory((h) => {
+      const prev = h[h.length - 1];
+      if (prev !== undefined) setFanFocusId(prev);
+      return h.slice(0, -1);
+    });
+  };
 
   const title =
     panel?.kind === 'members'
@@ -294,7 +342,8 @@ export function TreeView() {
               persons={tree.persons as TreePerson[]}
               unions={treeUnions}
               focusId={fanFocus}
-              onFocus={setFanFocusId}
+              onFocus={focusFan}
+              maxGen={fanGen}
             />
           ) : (
             <TreeCanvas
@@ -331,6 +380,45 @@ export function TreeView() {
         )}
       </div>
 
+      {view === 'fan' && tree && tree.persons.length > 0 && (
+        <div className="pointer-events-auto absolute bottom-4 left-4 z-10 flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-md ring-1 ring-stone-200 backdrop-blur dark:bg-stone-900/90 dark:ring-stone-700">
+          <button
+            type="button"
+            onClick={fanBack}
+            disabled={fanHistory.length === 0}
+            aria-label={t('back')}
+            title={t('back')}
+            className="grid size-8 place-items-center rounded-full text-sm text-stone-500 transition hover:bg-stone-100 disabled:opacity-30 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            <FontAwesomeIcon icon={icons.arrowLeft} />
+          </button>
+          <span className="mx-0.5 h-5 w-px bg-stone-200 dark:bg-stone-700" />
+          <button
+            type="button"
+            onClick={() => setFanGen((g) => Math.max(2, g - 1))}
+            disabled={fanGen <= 2}
+            aria-label={t('fewerLevels')}
+            title={t('fewerLevels')}
+            className="grid size-8 place-items-center rounded-full text-sm text-stone-500 transition hover:bg-stone-100 disabled:opacity-30 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            <FontAwesomeIcon icon={icons.minus} />
+          </button>
+          <span className="min-w-4 text-center text-xs font-semibold tabular-nums text-stone-600 dark:text-stone-300">
+            {fanGen}
+          </span>
+          <button
+            type="button"
+            onClick={() => setFanGen((g) => Math.min(8, g + 1))}
+            disabled={fanGen >= 8}
+            aria-label={t('moreLevels')}
+            title={t('moreLevels')}
+            className="grid size-8 place-items-center rounded-full text-sm text-stone-500 transition hover:bg-stone-100 disabled:opacity-30 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            <FontAwesomeIcon icon={icons.plus} />
+          </button>
+        </div>
+      )}
+
       {panel && (
         <aside className="absolute bottom-4 right-4 top-16 z-10 w-85 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-2xl ring-1 ring-amber-900/10 backdrop-blur dark:bg-stone-900/95 dark:ring-stone-700">
           <div className="mb-4 flex items-start justify-between gap-2">
@@ -365,6 +453,7 @@ export function TreeView() {
               sources={sources}
               isAdmin={isAdmin ?? false}
               onError={fail}
+              onOpenUnion={(unionId) => setPanel({ kind: 'union', id: unionId })}
               onOpenPerson={(pid) => setPanel({ kind: 'person', id: pid })}
               onPlaceRelative={placeRelative}
             />

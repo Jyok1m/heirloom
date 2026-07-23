@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { useRef, useState } from 'react';
 import type { Sex } from '../../generated/graphql';
 import {
+  displayName,
   enumLabel,
   NAME_PREFIXES,
   NAME_SUFFIXES,
@@ -26,13 +27,17 @@ import {
   UPDATE_PERSON,
   UPDATE_UNION,
 } from './operations';
-import { fieldClass, Section, smallButton } from './ui';
+import { fieldClass, Section } from './ui';
 
 const REFETCH = ['PersonDetail', 'TreeCanvas', 'UnionDetail'];
 
 // Male/female accent colours for the relationship buttons
 const M = '#5f8a8f';
 const F = '#c0714a';
+
+// A field label sitting above its input
+const labelClass =
+  'flex flex-col gap-1 text-xs font-medium text-stone-500 dark:text-stone-400';
 
 export function PersonPanel({
   personId,
@@ -41,6 +46,7 @@ export function PersonPanel({
   sources,
   isAdmin,
   onError,
+  onOpenUnion,
   onOpenPerson,
   onPlaceRelative,
 }: {
@@ -50,6 +56,7 @@ export function PersonPanel({
   sources: { id: string; title: string }[];
   isAdmin: boolean;
   onError(): void;
+  onOpenUnion(id: string): void;
   onOpenPerson(id: string): void;
   onPlaceRelative(
     anchorId: string,
@@ -60,9 +67,9 @@ export function PersonPanel({
   const { t, lang } = useI18n();
   const { confirm } = useNotify();
   const { data } = useQuery(PERSON_DETAIL, { variables: { id: personId } });
-  const [updatePerson, updateState] = useMutation(UPDATE_PERSON, {
-    refetchQueries: REFETCH,
-  });
+  // No refetch: the mutation returns the updated fields, so Apollo's cache
+  // updates the card and panel in place (no full-screen reload while typing).
+  const [updatePerson] = useMutation(UPDATE_PERSON);
   const [deletePerson] = useMutation(DELETE_PERSON, { refetchQueries: REFETCH });
   const [createPerson] = useMutation(CREATE_PERSON, { refetchQueries: REFETCH });
   const [createUnion] = useMutation(CREATE_UNION, { refetchQueries: REFETCH });
@@ -79,6 +86,8 @@ export function PersonPanel({
   const [relBusy, setRelBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pending = useRef<Record<string, string> | null>(null);
 
   if (!person) {
     return (
@@ -102,10 +111,59 @@ export function PersonPanel({
     email: person.email ?? '',
     phone: person.phone ?? '',
   };
-  const set = (key: string, value: string) =>
-    setForm({ ...current, [key]: value });
-
   const fail = () => onError();
+
+  // Real-time save: a field change persists after a short debounce, and leaving
+  // any field (or the panel) flushes the pending change immediately. No button.
+  const buildInput = (data: Record<string, string>) => ({
+    firstName: data.firstName || null,
+    lastName: data.lastName || null,
+    birthName: data.birthName || null,
+    namePrefix: data.namePrefix || null,
+    nameSuffix: data.nameSuffix || null,
+    nickname: data.nickname || null,
+    sex: data.sex as Sex,
+    notes: data.notes || null,
+    address: data.address || null,
+    email: data.email || null,
+    phone: data.phone || null,
+  });
+  const flush = () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = undefined;
+    }
+    const data = pending.current;
+    if (!data) return;
+    pending.current = null;
+    void updatePerson({
+      variables: { id: person.id, input: buildInput(data) },
+    }).catch(fail);
+  };
+  const set = (key: string, value: string) => {
+    const next = { ...current, [key]: value };
+    setForm(next);
+    pending.current = next;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(flush, 1500);
+  };
+
+  // The person's union events (marriage, separation…) shown on their own life
+  // timeline, read-only, opening the union to edit.
+  const unionEvents = person.unions.flatMap((u) => {
+    const partner = u.partners.find((p) => p.id !== person.id);
+    const context = partner
+      ? `${t('withPartner')} ${displayName(partner)}`
+      : undefined;
+    return u.events.map((e) => ({
+      id: e.id,
+      type: e.type,
+      dateValue: e.dateValue,
+      dateSort: e.dateSort,
+      context,
+      onOpen: () => onOpenUnion(u.id),
+    }));
+  });
 
   // Profile picture: upload the file (REST), then point the person at it. The
   // media isn't linked in the gallery — it's the dedicated avatar.
@@ -328,62 +386,47 @@ export function PersonPanel({
         />
       </div>
 
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void updatePerson({
-            variables: {
-              id: person.id,
-              input: {
-                firstName: current.firstName || null,
-                lastName: current.lastName || null,
-                birthName: current.birthName || null,
-                namePrefix: current.namePrefix || null,
-                nameSuffix: current.nameSuffix || null,
-                nickname: current.nickname || null,
-                sex: current.sex as Sex,
-                notes: current.notes || null,
-                address: current.address || null,
-                email: current.email || null,
-                phone: current.phone || null,
-              },
-            },
-          }).catch(fail);
-        }}
-      >
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="flex flex-col gap-2.5" onBlur={flush}>
+        <label className={labelClass}>
+          {t('firstNamesL')}
           <input
-            placeholder={t('firstNamesL')}
             value={current.firstName}
             onChange={(e) => set('firstName', e.target.value)}
             className={fieldClass}
           />
-          <input
-            placeholder={t('familyNameL')}
-            value={current.lastName}
-            onChange={(e) => set('lastName', e.target.value)}
-            className={fieldClass}
-          />
+        </label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className={labelClass}>
+            {t('familyNameL')}
+            <input
+              value={current.lastName}
+              onChange={(e) => set('lastName', e.target.value)}
+              className={fieldClass}
+            />
+          </label>
+          <label className={labelClass}>
+            {t('maidenNameL')}
+            <input
+              value={current.birthName}
+              onChange={(e) => set('birthName', e.target.value)}
+              className={fieldClass}
+            />
+          </label>
         </div>
-        <input
-          placeholder={t('maidenNameL')}
-          value={current.birthName}
-          onChange={(e) => set('birthName', e.target.value)}
-          className={fieldClass}
-        />
-        <select
-          aria-label={t('sexL')}
-          value={current.sex}
-          onChange={(e) => set('sex', e.target.value)}
-          className={fieldClass}
-        >
-          {SEXES.map((value) => (
-            <option key={value} value={value}>
-              {enumLabel('sex', value, lang)}
-            </option>
-          ))}
-        </select>
+        <label className={labelClass}>
+          {t('sexL')}
+          <select
+            value={current.sex}
+            onChange={(e) => set('sex', e.target.value)}
+            className={fieldClass}
+          >
+            {SEXES.map((value) => (
+              <option key={value} value={value}>
+                {enumLabel('sex', value, lang)}
+              </option>
+            ))}
+          </select>
+        </label>
         <details className="rounded-xl border border-stone-200/70 px-3 py-2 dark:border-stone-700/60">
           <summary className="cursor-pointer select-none text-xs font-medium text-stone-500 marker:text-stone-400 dark:text-stone-400">
             {t('moreInfo')}
@@ -457,10 +500,7 @@ export function PersonPanel({
             />
           </div>
         </details>
-        <button type="submit" disabled={updateState.loading} className={smallButton}>
-          {updateState.loading ? t('submitting') : t('save')}
-        </button>
-      </form>
+      </div>
 
       <Section title={t('quickRelatives')}>
         <div className="grid grid-cols-2 gap-2">
@@ -486,6 +526,7 @@ export function PersonPanel({
         ownerType="person"
         ownerId={person.id}
         events={person.events as never}
+        extraEvents={unionEvents}
         sources={sources}
         isAdmin={isAdmin}
         onChange={() => {}}

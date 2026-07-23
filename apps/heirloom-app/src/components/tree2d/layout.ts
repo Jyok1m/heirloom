@@ -20,6 +20,8 @@ export interface TreeUnion {
   // Link styling: union type and whether it's dissolved (divorce/annulment)
   type?: 'MARRIAGE' | 'CIVIL_UNION' | 'PARTNERSHIP' | 'UNKNOWN' | null;
   dissolved?: boolean | null;
+  // Verbatim start date (marriage / getting together), for the small label
+  date?: string | null;
 }
 
 export interface PersonBox {

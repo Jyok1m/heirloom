@@ -41,6 +41,19 @@ interface SourceItem {
   id: string;
   title: string;
 }
+// Read-only events borrowed from elsewhere (a person's union events shown on
+// their own life timeline). Clicking opens the owner for editing.
+export interface ExtraEvent {
+  id: string;
+  type: string;
+  dateValue?: string | null;
+  dateSort?: unknown;
+  context?: string;
+  onOpen?: () => void;
+}
+
+const sortKey = (ev: { dateSort?: unknown }) =>
+  typeof ev.dateSort === 'string' ? ev.dateSort : '￿';
 
 const REFETCH = ['PersonDetail', 'UnionDetail', 'TreeCanvas'];
 
@@ -220,6 +233,7 @@ export function EventList({
   ownerType,
   ownerId,
   events,
+  extraEvents,
   sources,
   isAdmin,
   onChange,
@@ -228,6 +242,7 @@ export function EventList({
   ownerType: 'person' | 'union';
   ownerId: string;
   events: EventItem[];
+  extraEvents?: ExtraEvent[];
   sources: SourceItem[];
   isAdmin: boolean;
   onChange(): void;
@@ -246,6 +261,15 @@ export function EventList({
   const [deleteEvent] = useMutation(DELETE_EVENT, { refetchQueries: REFETCH });
 
   const ownerKey = ownerType === 'person' ? 'personId' : 'unionId';
+
+  // Own (editable) events merged chronologically with borrowed union events.
+  const rows: (
+    | { kind: 'own'; ev: EventItem }
+    | { kind: 'extra'; ev: ExtraEvent }
+  )[] = [
+    ...events.map((ev) => ({ kind: 'own' as const, ev })),
+    ...(extraEvents ?? []).map((ev) => ({ kind: 'extra' as const, ev })),
+  ].sort((a, b) => sortKey(a.ev).localeCompare(sortKey(b.ev)));
 
   return (
     <Section
@@ -291,15 +315,40 @@ export function EventList({
         </div>
       )}
 
-      {events.length === 0 && !adding && (
+      {rows.length === 0 && !adding && (
         <p className="text-sm text-stone-400 dark:text-stone-500">
           {t('noEvents')}
         </p>
       )}
 
       <div className="flex flex-col gap-2">
-        {events.map((event) =>
-          editingId === event.id ? (
+        {rows.map((row) => {
+          if (row.kind === 'extra') {
+            const ev = row.ev;
+            return (
+              <button
+                key={ev.id}
+                type="button"
+                onClick={ev.onOpen}
+                className="rounded-xl bg-amber-50/70 p-2.5 text-left text-sm transition hover:bg-amber-100/70 dark:bg-stone-800/50 dark:hover:bg-stone-800"
+              >
+                <span className="font-medium text-stone-800 dark:text-stone-100">
+                  <FontAwesomeIcon
+                    icon={EVENT_ICON[ev.type] ?? icons.ring}
+                    className="mr-1.5"
+                  />{' '}
+                  {enumLabel('eventType', ev.type, lang)}
+                </span>
+                {(ev.context || ev.dateValue) && (
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    {[ev.context, ev.dateValue].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </button>
+            );
+          }
+          const event = row.ev;
+          return editingId === event.id ? (
             <EventForm
               key={event.id}
               ownerType={ownerType}
@@ -385,8 +434,8 @@ export function EventList({
                 onError={onError}
               />
             </div>
-          ),
-        )}
+          );
+        })}
       </div>
     </Section>
   );

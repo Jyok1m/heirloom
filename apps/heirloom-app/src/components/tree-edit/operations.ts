@@ -20,6 +20,7 @@ export const TREE_CANVAS = graphql(`
         id
         type
         dissolved
+        date
         partners {
           id
         }
@@ -97,6 +98,12 @@ export const PERSON_DETAIL = graphql(`
             firstName
             lastName
           }
+        }
+        events {
+          id
+          type
+          dateValue
+          dateSort
         }
       }
       parentUnions {
@@ -188,6 +195,18 @@ export const UPDATE_PERSON = graphql(`
   mutation UpdatePerson($id: ID!, $input: UpdatePersonInput!) {
     updatePerson(id: $id, input: $input) {
       id
+      firstName
+      lastName
+      birthName
+      namePrefix
+      nameSuffix
+      nickname
+      sex
+      notes
+      address
+      email
+      phone
+      photoMediaId
     }
   }
 `);
