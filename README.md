@@ -6,9 +6,13 @@ Open source, self-hosted family tree application. Your family data stays on your
 
 pnpm monorepo:
 
-- `apps/heirloom-api` — NestJS API (GraphQL, PostgreSQL via Prisma)
-- `apps/heirloom-app` — React + Vite frontend (Apollo Client)
+- `apps/heirloom-api` — NestJS API (GraphQL code-first, PostgreSQL via Prisma)
+- `apps/heirloom-app` — React + Vite frontend (Apollo Client) — the product
+- `apps/heirloom-web` — Astro + Starlight marketing site (landing, docs, live demo)
 - `packages/` — shared code
+
+The product app and the marketing site are deployed on **separate domains**
+(the app on `heirloom.joachimjasmin.com`, the marketing site on `heirloom-app.com`).
 
 ## Getting started
 
@@ -18,18 +22,27 @@ Requirements: Node.js >= 22, pnpm, Docker.
 cp .env.example .env        # adjust credentials if needed
 pnpm install
 docker compose up -d db     # PostgreSQL
-pnpm db:migrate             # apply database migrations (also generates the Prisma client)
-pnpm dev                    # API on :3000, app on :5173
+pnpm db:migrate             # apply database migrations
+pnpm db:generate            # regenerate the Prisma client (migrate dev doesn't always do it)
+pnpm dev                    # api :3000, app :5173, web :4321
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173 (product) — the marketing site runs at http://localhost:4321.
+
+Run a single workspace:
+
+```bash
+pnpm dev:api                     # API only (:3000)
+pnpm dev:app                     # product frontend only (:5173)
+pnpm --filter heirloom-web dev   # marketing site only (:4321)
+```
 
 ## Scripts
 
 ```bash
-pnpm dev          # api + app in watch mode
+pnpm dev          # api + app + web in watch mode
 pnpm dev:api      # API only
-pnpm dev:app      # frontend only
+pnpm dev:app      # product frontend only
 pnpm build        # build all workspaces
 pnpm lint         # lint all workspaces
 
@@ -43,31 +56,40 @@ In production, apply migrations with `pnpm --filter heirloom-api db:deploy` (`pr
 
 ## Deployment & CI/CD
 
-The stack is designed for self-hosting with Docker Compose. CI builds multi-arch
-images (`linux/amd64` + `linux/arm64`) and pushes them to Docker Hub; the deploy
-host only pulls and runs them.
+The stack is designed for self-hosting with Docker Compose. CI builds
+**`linux/amd64`** images and pushes them to Docker Hub; the deploy host only
+pulls and runs them.
 
 **On the deploy host** — copy `docker-compose.prod.yml` to `/opt/heirloom/docker-compose.yml`
-and add a `.env` (from `.env.example`, with real secrets and `PUBLIC_URL` set to
-your domain). Then:
+and add a `.env` (from `.env.example`, with real secrets). Then:
 
 ```bash
 docker compose pull
 docker compose run --rm migrate     # apply pending migrations
-docker compose up -d api app        # nginx (app) proxies /api and /graphql to api
+docker compose up -d api app web
 ```
 
-The frontend is served by nginx on `127.0.0.1:8081` — put it behind your reverse
-proxy (TLS, domain). `PUBLIC_URL` is baked into the frontend **at build time**
-(canonical/OG/sitemap), so CI passes it as a Docker build-arg.
+Services and ports (bind to loopback; put each behind your reverse proxy with TLS):
+
+- `api` — the GraphQL/REST backend (internal only).
+- `app` — nginx serving the product SPA on `127.0.0.1:8081`; it proxies `/api`
+  and `/graphql` to `api`. Map it to the app domain (`heirloom.joachimjasmin.com`).
+- `web` — nginx serving the static marketing site on `127.0.0.1:8082`. Map it to
+  the marketing domain (`heirloom-app.com`).
+
+`PUBLIC_URL` (and the marketing site's other `PUBLIC_*` vars) are baked into the
+frontends **at build time**, so CI passes them as Docker build-args — the host
+`.env` doesn't need them for the prebuilt images.
 
 **Pipeline** (`Jenkinsfile` at the repo root, one job for the whole monorepo):
 a push to `main` triggers Jenkins via `.github/workflows/trigger_jenkins.yml`. The
-pipeline detects which app changed (`git diff`), builds/pushes only that image
-(tagged with the commit SHA + `main`), then runs migrations and restarts the
-changed services over SSH. Point the Jenkins job's "Pipeline script from SCM" at
-the root `Jenkinsfile`. Required Jenkins credentials: `dockerhub-credentials`,
-`host-ssh-key`, `host-ssh-port`.
+pipeline detects which app changed (`git diff`), builds/pushes only the changed
+images (`heirloom-api` / `heirloom-app` / `heirloom-web`, tagged with the commit
+SHA + `main`), runs migrations when a new one is added, then restarts the changed
+services over SSH. Use **"Build with Parameters" → `FORCE_BUILD`** to (re)build and
+deploy all three regardless of change detection. Point the Jenkins job's "Pipeline
+script from SCM" at the root `Jenkinsfile`. Required Jenkins credentials:
+`dockerhub-credentials`, `host-ssh-key`, `host-ssh-port`.
 
 ## License
 

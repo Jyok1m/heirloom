@@ -14,7 +14,8 @@ repository.
 - `src/pages/demo.astro` — live demo page (`/demo`)
 - `src/content/docs/docs/**` — documentation, served by Starlight under `/docs/*`
 - `src/layouts/Marketing.astro` — shell (nav + footer) for the marketing pages
-- `src/styles/global.css` — marketing styles · `src/styles/docs.css` — Starlight brand overrides
+- `src/styles/global.css` — marketing styles · `src/styles/global-fonts.css` &
+  `src/styles/docs.css` — Starlight brand/type overrides
 
 ## Commands
 
@@ -39,3 +40,28 @@ target. All variables are prefixed `PUBLIC_` so they are inlined at build time.
 The demo target is the `/view/<token>` public snapshot of a seeded tree. Create
 it as an admin on a running instance (enable sharing on the demo tree), then set
 `PUBLIC_DEMO_URL` to the returned URL.
+
+## Docker
+
+The site is fully static, served by nginx (no backend). The `PUBLIC_*` values are
+inlined at **build time** via build-args.
+
+Standalone (build the image and run it on `127.0.0.1:8082`):
+
+```bash
+docker compose up -d --build      # from this directory
+```
+
+Build the image directly (context is the monorepo root):
+
+```bash
+docker build -f apps/heirloom-web/Dockerfile \
+  --build-arg PUBLIC_URL=https://heirloom-app.com \
+  --build-arg PUBLIC_GITHUB_URL=https://github.com/Jyok1m/heirloom \
+  --build-arg PUBLIC_DEMO_URL=https://heirloom.joachimjasmin.com/view/<token> \
+  -t jyok1m/heirloom-web:main .
+```
+
+In production this image runs as the `web` service in the root
+`docker-compose.prod.yml`, built/pushed/deployed by the monorepo `Jenkinsfile`
+(the build-args come from the `WEB_*` env in that pipeline).
