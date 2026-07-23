@@ -11,6 +11,12 @@ export class Tree {
   @Field(() => String, { nullable: true })
   description!: string | null;
 
+  @Field(() => String, { nullable: true })
+  icon!: string | null;
+
+  @Field(() => String, { nullable: true })
+  color!: string | null;
+
   @Field()
   createdAt!: Date;
 

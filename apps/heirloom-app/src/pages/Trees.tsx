@@ -17,6 +17,8 @@ const TREES_QUERY = graphql(`
       id
       name
       description
+      icon
+      color
       createdAt
       persons {
         id
@@ -50,6 +52,53 @@ const DELETE_TREE = graphql(`
     }
   }
 `);
+
+// --- Card presentation presets (icon + colour) --------------------------
+const DEFAULT_ICON = 'tree';
+const DEFAULT_COLOR = 'amber';
+
+// Preset icon keys — each must exist in the shared `icons` map.
+const TREE_ICONS = [
+  'tree',
+  'house',
+  'heart',
+  'ring',
+  'book',
+  'star',
+  'church',
+  'seedling',
+  'users',
+  'dove',
+] as const;
+
+// Preset colours -> full Tailwind class strings (kept whole so JIT keeps them).
+const TREE_COLORS: Record<
+  string,
+  { grad: string; text: string; swatch: string }
+> = {
+  amber: { grad: 'from-amber-100 to-orange-100', text: 'text-amber-700 dark:text-amber-400', swatch: 'bg-amber-500' },
+  rose: { grad: 'from-rose-100 to-pink-100', text: 'text-rose-700 dark:text-rose-400', swatch: 'bg-rose-500' },
+  emerald: { grad: 'from-emerald-100 to-teal-100', text: 'text-emerald-700 dark:text-emerald-400', swatch: 'bg-emerald-500' },
+  sky: { grad: 'from-sky-100 to-blue-100', text: 'text-sky-700 dark:text-sky-400', swatch: 'bg-sky-500' },
+  violet: { grad: 'from-violet-100 to-purple-100', text: 'text-violet-700 dark:text-violet-400', swatch: 'bg-violet-500' },
+  orange: { grad: 'from-orange-100 to-amber-100', text: 'text-orange-700 dark:text-orange-400', swatch: 'bg-orange-500' },
+  teal: { grad: 'from-teal-100 to-cyan-100', text: 'text-teal-700 dark:text-teal-400', swatch: 'bg-teal-500' },
+  stone: { grad: 'from-stone-200 to-stone-100', text: 'text-stone-600 dark:text-stone-300', swatch: 'bg-stone-500' },
+};
+const COLOR_KEYS = Object.keys(TREE_COLORS);
+
+const treeIcon = (key?: string | null) =>
+  icons[(key ?? DEFAULT_ICON) as keyof typeof icons] ?? icons.tree;
+const treeColor = (key?: string | null) =>
+  TREE_COLORS[key ?? DEFAULT_COLOR] ?? TREE_COLORS[DEFAULT_COLOR];
+
+type TreeEdit = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+};
 
 function NewTreeForm({ onDone }: { onDone: () => void }) {
   const { t } = useI18n();
@@ -112,25 +161,31 @@ function NewTreeForm({ onDone }: { onDone: () => void }) {
 
 export function Trees() {
   const { t, lang } = useI18n();
-  const { confirm } = useNotify();
+  const { confirmType } = useNotify();
   const { user } = useAuth();
   useTitle(t('treesTitle'));
   const { data, loading, error } = useQuery(TREES_QUERY);
   const [creating, setCreating] = useState(false);
-  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(
-    null,
-  );
+  const [editing, setEditing] = useState<TreeEdit | null>(null);
   const [updateTree] = useMutation(UPDATE_TREE, { refetchQueries: ['Trees'] });
   const [deleteTree] = useMutation(DELETE_TREE, { refetchQueries: ['Trees'] });
   const isAdmin = user?.role === 'ADMIN';
 
-  const submitRename = () => {
-    if (renaming?.name.trim()) {
+  const submitEdit = () => {
+    if (editing && editing.name.trim()) {
       void updateTree({
-        variables: { id: renaming.id, input: { name: renaming.name.trim() } },
+        variables: {
+          id: editing.id,
+          input: {
+            name: editing.name.trim(),
+            description: editing.description.trim() || null,
+            icon: editing.icon,
+            color: editing.color,
+          },
+        },
       });
     }
-    setRenaming(null);
+    setEditing(null);
   };
 
   return (
@@ -206,8 +261,10 @@ export function Trees() {
               className="group flex flex-col rounded-3xl bg-white p-5 shadow-sm ring-1 ring-amber-900/10 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/10 dark:bg-stone-900 dark:ring-stone-800"
             >
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-linear-to-br from-amber-100 to-orange-100 text-lg text-amber-700 dark:from-stone-800 dark:to-stone-800 dark:text-amber-400">
-                  <FontAwesomeIcon icon={icons.tree} />
+                <span
+                  className={`grid size-10 place-items-center rounded-xl bg-linear-to-br text-lg dark:from-stone-800 dark:to-stone-800 ${treeColor(tree.color).grad} ${treeColor(tree.color).text}`}
+                >
+                  <FontAwesomeIcon icon={treeIcon(tree.icon)} />
                 </span>
                 <h2 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-stone-900 dark:text-stone-100">
                   {tree.name}
@@ -216,11 +273,17 @@ export function Trees() {
                   <span className="flex shrink-0 gap-0.5 opacity-0 transition group-hover:opacity-100">
                     <button
                       type="button"
-                      aria-label={t('renameTree')}
-                      title={t('renameTree')}
+                      aria-label={t('editTree')}
+                      title={t('editTree')}
                       onClick={(event) => {
                         event.preventDefault();
-                        setRenaming({ id: tree.id, name: tree.name });
+                        setEditing({
+                          id: tree.id,
+                          name: tree.name,
+                          description: tree.description ?? '',
+                          icon: tree.icon ?? DEFAULT_ICON,
+                          color: tree.color ?? DEFAULT_COLOR,
+                        });
                       }}
                       className="rounded-lg px-1.5 py-1 text-sm text-stone-400 transition hover:bg-amber-100 hover:text-stone-700 dark:hover:bg-stone-800"
                     >
@@ -232,8 +295,9 @@ export function Trees() {
                       title={t('deleteTreeAction')}
                       onClick={(event) => {
                         event.preventDefault();
-                        void confirm(t('confirmDeleteTree'), {
+                        void confirmType(t('deleteWord'), {
                           danger: true,
+                          title: t('confirmDeleteTree'),
                         }).then((ok) => {
                           if (ok) {
                             void deleteTree({ variables: { id: tree.id } });
@@ -271,23 +335,100 @@ export function Trees() {
       )}
 
       <Modal
-        open={renaming !== null}
-        title={t('renameTree')}
+        open={editing !== null}
+        title={t('editTree')}
         okText={t('save')}
         cancelText={t('cancel')}
         centered
-        onOk={submitRename}
-        onCancel={() => setRenaming(null)}
+        okButtonProps={{ disabled: !editing?.name.trim() }}
+        onOk={submitEdit}
+        onCancel={() => setEditing(null)}
       >
-        <Input
-          autoFocus
-          value={renaming?.name ?? ''}
-          maxLength={200}
-          onChange={(event) =>
-            setRenaming((r) => (r ? { ...r, name: event.target.value } : r))
-          }
-          onPressEnter={submitRename}
-        />
+        {editing && (
+          <div className="flex flex-col gap-4 py-1">
+            <label className="flex flex-col gap-1 text-xs font-medium text-stone-500 dark:text-stone-400">
+              {t('treeNameLabel')}
+              <Input
+                autoFocus
+                value={editing.name}
+                maxLength={200}
+                onChange={(e) =>
+                  setEditing((s) => (s ? { ...s, name: e.target.value } : s))
+                }
+                onPressEnter={submitEdit}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-stone-500 dark:text-stone-400">
+              {t('treeDescLabel')}
+              <Input.TextArea
+                value={editing.description}
+                maxLength={10_000}
+                autoSize={{ minRows: 2, maxRows: 4 }}
+                onChange={(e) =>
+                  setEditing((s) =>
+                    s ? { ...s, description: e.target.value } : s,
+                  )
+                }
+              />
+            </label>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+                {t('treeIconLabel')}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {TREE_ICONS.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-label={key}
+                    onClick={() =>
+                      setEditing((s) => (s ? { ...s, icon: key } : s))
+                    }
+                    className={`grid size-9 place-items-center rounded-xl border transition ${
+                      editing.icon === key
+                        ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-stone-800 dark:text-amber-300'
+                        : 'border-stone-200 text-stone-500 hover:border-amber-300 dark:border-stone-700 dark:text-stone-300'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={treeIcon(key)} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+                {t('treeColorLabel')}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_KEYS.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-label={key}
+                    onClick={() =>
+                      setEditing((s) => (s ? { ...s, color: key } : s))
+                    }
+                    className={`size-8 rounded-full ring-2 ring-offset-2 transition dark:ring-offset-stone-900 ${TREE_COLORS[key].swatch} ${
+                      editing.color === key
+                        ? 'ring-stone-400 dark:ring-stone-300'
+                        : 'ring-transparent'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="mt-1 flex items-center gap-3 rounded-2xl bg-stone-50 p-3 dark:bg-stone-800/50">
+              <span
+                className={`grid size-10 place-items-center rounded-xl bg-linear-to-br text-lg dark:from-stone-800 dark:to-stone-800 ${treeColor(editing.color).grad} ${treeColor(editing.color).text}`}
+              >
+                <FontAwesomeIcon icon={treeIcon(editing.icon)} />
+              </span>
+              <span className="min-w-0 truncate font-display text-base font-semibold text-stone-800 dark:text-stone-100">
+                {editing.name || t('treeNameLabel')}
+              </span>
+            </div>
+          </div>
+        )}
       </Modal>
     </main>
   );

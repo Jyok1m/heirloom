@@ -41,7 +41,7 @@ type Documents = {
     "\n  mutation LinkMedia($input: LinkMediaInput!) {\n    linkMedia(input: $input) {\n      id\n    }\n  }\n": typeof types.LinkMediaDocument,
     "\n  mutation UnlinkMedia($id: ID!) {\n    unlinkMedia(id: $id) {\n      id\n    }\n  }\n": typeof types.UnlinkMediaDocument,
     "\n  mutation DeleteMedia($id: ID!) {\n    deleteMedia(id: $id) {\n      id\n    }\n  }\n": typeof types.DeleteMediaDocument,
-    "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n": typeof types.TreesDocument,
+    "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      icon\n      color\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n": typeof types.TreesDocument,
     "\n  mutation CreateTree($input: CreateTreeInput!) {\n    createTree(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.CreateTreeDocument,
     "\n  mutation UpdateTree($id: ID!, $input: UpdateTreeInput!) {\n    updateTree(id: $id, input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.UpdateTreeDocument,
     "\n  mutation DeleteTree($id: ID!) {\n    deleteTree(id: $id) {\n      id\n    }\n  }\n": typeof types.DeleteTreeDocument,
@@ -74,7 +74,7 @@ const documents: Documents = {
     "\n  mutation LinkMedia($input: LinkMediaInput!) {\n    linkMedia(input: $input) {\n      id\n    }\n  }\n": types.LinkMediaDocument,
     "\n  mutation UnlinkMedia($id: ID!) {\n    unlinkMedia(id: $id) {\n      id\n    }\n  }\n": types.UnlinkMediaDocument,
     "\n  mutation DeleteMedia($id: ID!) {\n    deleteMedia(id: $id) {\n      id\n    }\n  }\n": types.DeleteMediaDocument,
-    "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n": types.TreesDocument,
+    "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      icon\n      color\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n": types.TreesDocument,
     "\n  mutation CreateTree($input: CreateTreeInput!) {\n    createTree(input: $input) {\n      id\n      name\n    }\n  }\n": types.CreateTreeDocument,
     "\n  mutation UpdateTree($id: ID!, $input: UpdateTreeInput!) {\n    updateTree(id: $id, input: $input) {\n      id\n      name\n    }\n  }\n": types.UpdateTreeDocument,
     "\n  mutation DeleteTree($id: ID!) {\n    deleteTree(id: $id) {\n      id\n    }\n  }\n": types.DeleteTreeDocument,
@@ -205,7 +205,7 @@ export function graphql(source: "\n  mutation DeleteMedia($id: ID!) {\n    delet
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  query Trees {\n    trees {\n      id\n      name\n      description\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query Trees {\n    trees {\n      id\n      name\n      description\n      icon\n      color\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  query Trees {\n    trees {\n      id\n      name\n      description\n      icon\n      color\n      createdAt\n      persons {\n        id\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -96,6 +96,10 @@ model Tree {
   id          String   @id @default(uuid())
   name        String
   description String?
+  // Card presentation: an icon key and a colour key from the app's preset sets
+  // (see the frontend TREE_ICONS / TREE_COLORS). null = default (tree / amber).
+  icon        String?
+  color       String?
   // Anonymous read-only share link ("anyone with the link can view").
   // null = public sharing disabled; rotating the token revokes old links.
   publicShareToken String? @unique

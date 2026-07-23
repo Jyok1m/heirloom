@@ -31,7 +31,7 @@ async function api(path: string, init?: RequestInit): Promise<unknown> {
 // Admin-only: members of a tree, its public view link, and contributor invites.
 export function MembersPanel({ treeId }: { treeId: string }) {
   const { t } = useI18n();
-  const { confirm } = useNotify();
+  const { confirm, confirmType } = useNotify();
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [share, setShare] = useState<ShareState>({ enabled: false, url: null });
@@ -129,7 +129,10 @@ export function MembersPanel({ treeId }: { treeId: string }) {
               <button
                 type="button"
                 onClick={() => {
-                  void confirm(t('confirmRegenerateShare')).then((ok) => {
+                  void confirmType(t('regenerateWord'), {
+                    title: t('confirmRegenerateShare'),
+                    okText: t('regenerate'),
+                  }).then((ok) => {
                     if (ok) {
                       void api(`/api/trees/${treeId}/share/rotate`, {
                         method: 'POST',

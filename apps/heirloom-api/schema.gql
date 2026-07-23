@@ -65,7 +65,9 @@ input CreateSourceInput {
 }
 
 input CreateTreeInput {
+  color: String
   description: String
+  icon: String
   name: String!
 }
 
@@ -264,8 +266,10 @@ type Source {
 }
 
 type Tree {
+  color: String
   createdAt: DateTime!
   description: String
+  icon: String
   id: ID!
   mediaItems: [Media!]!
   mySelfPersonId: ID
@@ -358,7 +362,9 @@ input UpdateSourceInput {
 }
 
 input UpdateTreeInput {
+  color: String
   description: String
+  icon: String
   name: String
 }
 

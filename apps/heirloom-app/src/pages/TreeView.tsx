@@ -570,6 +570,7 @@ export function TreeView() {
               onOpenUnion={(unionId) => setPanel({ kind: 'union', id: unionId })}
               onOpenPerson={(pid) => setPanel({ kind: 'person', id: pid })}
               onPlaceRelative={placeRelative}
+              onDeleted={() => setPanel(null)}
             />
           )}
           {panel.kind === 'union' && (

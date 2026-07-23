@@ -49,6 +49,7 @@ export function PersonPanel({
   onOpenUnion,
   onOpenPerson,
   onPlaceRelative,
+  onDeleted,
 }: {
   personId: string;
   treeId: string;
@@ -63,9 +64,10 @@ export function PersonPanel({
     newId: string,
     relation: 'parent' | 'sibling' | 'spouse' | 'child',
   ): void;
+  onDeleted(): void;
 }) {
   const { t, lang } = useI18n();
-  const { confirm } = useNotify();
+  const { confirmType } = useNotify();
   const { data } = useQuery(PERSON_DETAIL, { variables: { id: personId } });
   // No refetch: the mutation returns the updated fields, so Apollo's cache
   // updates the card and panel in place (no full-screen reload while typing).
@@ -546,10 +548,19 @@ export function PersonPanel({
         <button
           type="button"
           onClick={() => {
-            void confirm(t('confirmDelete'), { danger: true }).then((ok) => {
-              if (ok) {
-                void deletePerson({ variables: { id: person.id } }).catch(fail);
-              }
+            void confirmType(t('deleteWord'), {
+              danger: true,
+              title: t('confirmDelete'),
+            }).then((ok) => {
+              if (!ok) return;
+              // Cancel any queued autosave so it can't fire against the deleted
+              // person, then close the panel once the deletion succeeds.
+              if (saveTimer.current) clearTimeout(saveTimer.current);
+              saveTimer.current = undefined;
+              pending.current = null;
+              void deletePerson({ variables: { id: person.id } })
+                .then(() => onDeleted())
+                .catch(fail);
             });
           }}
           className="mt-5 w-full rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
