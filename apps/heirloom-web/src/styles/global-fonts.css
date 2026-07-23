@@ -1,0 +1,11 @@
+/* Match the product app's type system in the docs: system sans for body,
+   Georgia (the app's --font-display) for the brand title and headings. */
+:root {
+  --sl-font: ui-sans-serif, system-ui, sans-serif;
+}
+
+.site-title,
+.sl-markdown-content :is(h1, h2, h3) {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.01em;
+}

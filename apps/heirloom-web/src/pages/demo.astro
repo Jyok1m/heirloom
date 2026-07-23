@@ -1,0 +1,98 @@
+---
+import Marketing from '../layouts/Marketing.astro';
+
+// The demo points at a live, read-only public snapshot of a seeded tree,
+// served by a running Heirloom instance at /view/<token>. Configure the full
+// URL via PUBLIC_DEMO_URL; until it is set the button links to the docs so the
+// page never ships a dead link.
+const demoUrl = import.meta.env.PUBLIC_DEMO_URL || '';
+const hasDemo = demoUrl.length > 0;
+const M = '#5f8a8f';
+const F = '#c0714a';
+---
+
+<Marketing
+  title="Heirloom — Live demo"
+  description="Explore a real Heirloom family tree in a read-only public view — no account needed. See the canvas, unions and life events before you self-host."
+>
+  <section class="demo-hero">
+    <div class="wrap">
+      <span class="eyebrow">Live · Read-only</span>
+      <h1 class="display" style="margin:20px auto 0;max-width:18ch;font-size:clamp(2rem,5vw,3rem);color:var(--ink-strong)">
+        See a real tree, no sign-up
+      </h1>
+      <p class="lead" style="margin:18px auto 0;max-width:52ch">
+        This is a live public view of a seeded family tree — the very same
+        canvas you get once you self-host. Browse the generations, open a card,
+        follow the unions.
+      </p>
+
+      <div class="hero__cta" style="margin-top:26px">
+        <a
+          class="btn btn--primary"
+          href={hasDemo ? demoUrl : '/docs'}
+          rel="noopener"
+          target={hasDemo ? '_blank' : undefined}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14l11-7z"/></svg>
+          {hasDemo ? 'Open the live demo' : 'Self-host to try it'}
+        </a>
+        <a class="btn btn--ghost" href="/docs/self-hosting">Host your own</a>
+      </div>
+
+      <!-- Stylised preview of the tree canvas (decorative) -->
+      <div class="demo-preview" aria-hidden="true">
+        <div class="tree-mock">
+          <div class="tree-row">
+            <div class="node">
+              <div class="dot" style={`background:${M}`}>♂</div>
+              <div class="n">Auguste</div>
+              <div class="d">1901 – 1974</div>
+            </div>
+            <div class="node">
+              <div class="dot" style={`background:${F}`}>♀</div>
+              <div class="n">Marguerite</div>
+              <div class="d">1904 – 1988</div>
+            </div>
+          </div>
+          <div class="connector"></div>
+          <div class="tree-row">
+            <div class="node">
+              <div class="dot" style={`background:${M}`}>♂</div>
+              <div class="n">Henri</div>
+              <div class="d">1930 – 2011</div>
+            </div>
+            <div class="node">
+              <div class="dot" style={`background:${F}`}>♀</div>
+              <div class="n">Suzanne</div>
+              <div class="d">1935 – 2019</div>
+            </div>
+          </div>
+          <div class="connector"></div>
+          <div class="tree-row">
+            <div class="node">
+              <div class="dot" style={`background:${F}`}>♀</div>
+              <div class="n">Camille</div>
+              <div class="d">1962</div>
+            </div>
+            <div class="node">
+              <div class="dot" style={`background:${M}`}>♂</div>
+              <div class="n">Julien</div>
+              <div class="d">1965</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notecard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 7.5 8 9 4.5-1.5 8-4 8-9V6l-8-3z"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+        <div>
+          <strong>Privacy of the shared view.</strong> A public link only exposes
+          names, sex, birth/death years, profile photos and how people are
+          related. Contacts, addresses, notes, sources and every other detail
+          stay private on the host — they are never sent to a public viewer.
+        </div>
+      </div>
+    </div>
+  </section>
+</Marketing>

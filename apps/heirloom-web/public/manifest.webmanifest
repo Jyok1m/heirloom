@@ -1,0 +1,19 @@
+{
+  "name": "Heirloom",
+  "short_name": "Heirloom",
+  "description": "Open source, self-hosted genealogy. Build your family tree; your data stays on your own machine.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#faf7f0",
+  "theme_color": "#d97706",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["genealogy", "productivity", "lifestyle"],
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

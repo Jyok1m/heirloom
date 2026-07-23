@@ -1,0 +1,18 @@
+/* Align Starlight docs with the Heirloom brand (warm amber accent). */
+:root {
+  --sl-color-accent-low: #3a2a12;
+  --sl-color-accent: #d97706;
+  --sl-color-accent-high: #fcd9a4;
+  --sl-color-text-accent: #f59e0b;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #fdeccd;
+  --sl-color-accent: #b45309;
+  --sl-color-accent-high: #5c3410;
+  --sl-color-text-accent: #b45309;
+}
+
+.site-title {
+  font-weight: 600;
+}
