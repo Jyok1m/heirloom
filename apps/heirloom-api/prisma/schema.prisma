@@ -131,10 +131,15 @@ model TreeMembership {
   treeId String
   tree   Tree     @relation(fields: [treeId], references: [id], onDelete: Cascade)
   role   TreeRole
+  // The person this member identifies as ("c'est moi"), used to label each card
+  // with its kinship relative to the viewer. Cleared if that person is deleted.
+  selfPersonId String?
+  selfPerson   Person? @relation("MembershipSelf", fields: [selfPersonId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
   @@id([userId, treeId])
   @@index([treeId])
+  @@index([selfPersonId])
 }
 
 // Single-use invite link granting access to one tree
@@ -194,6 +199,8 @@ model Person {
   unions       UnionPartner[]
   parentLinks  ChildInUnion[]
   media        MediaLink[]
+  // Members who identify as this person (see TreeMembership.selfPerson)
+  membershipsSelf TreeMembership[] @relation("MembershipSelf")
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

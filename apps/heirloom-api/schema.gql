@@ -173,6 +173,7 @@ type Mutation {
   linkMedia(input: LinkMediaInput!): MediaLink!
   removeUnionChild(personId: ID!, unionId: ID!): Union!
   removeUnionPartner(personId: ID!, unionId: ID!): Union!
+  setSelfPerson(personId: ID, treeId: ID!): Boolean!
   setUnionChildPedigree(pedigree: Pedigree!, personId: ID!, unionId: ID!): Union!
   unlinkMedia(id: ID!): MediaLink!
   updateCitation(id: ID!, input: UpdateCitationInput!): Citation!
@@ -264,6 +265,7 @@ type Tree {
   description: String
   id: ID!
   mediaItems: [Media!]!
+  mySelfPersonId: ID
   name: String!
   persons: [Person!]!
   sources: [Source!]!

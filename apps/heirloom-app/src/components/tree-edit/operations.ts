@@ -6,6 +6,7 @@ export const TREE_CANVAS = graphql(`
     tree(id: $id) {
       id
       name
+      mySelfPersonId
       persons {
         id
         firstName
@@ -166,6 +167,12 @@ export const TREE_SOURCES = graphql(`
         notes
       }
     }
+  }
+`);
+
+export const SET_SELF_PERSON = graphql(`
+  mutation SetSelfPerson($treeId: ID!, $personId: ID) {
+    setSelfPerson(treeId: $treeId, personId: $personId)
   }
 `);
 

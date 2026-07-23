@@ -13,6 +13,7 @@ import {
 } from '../components/tree-edit/operations';
 import { fieldClass, smallButton } from '../components/tree-edit/ui';
 import { UnionPanel } from '../components/tree-edit/UnionPanel';
+import { FanChart } from '../components/tree2d/FanChart';
 import { TreeCanvas } from '../components/tree2d/TreeCanvas';
 import {
   CARD_H,
@@ -26,6 +27,7 @@ import { usePositions } from '../components/tree2d/positions';
 import type { Sex } from '../generated/graphql';
 import { icons } from '../lib/icons';
 import { displayName, enumLabel, SEXES } from '../lib/genealogy';
+import { computeKinships, kinshipLabel } from '../lib/kinship';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 import { useTitle } from '../lib/useTitle';
@@ -117,7 +119,7 @@ type Panel =
 
 export function TreeView() {
   const { id = '' } = useParams();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
@@ -186,6 +188,29 @@ export function TreeView() {
   const others = tree?.persons ?? [];
   const sources = sourcesData?.tree.sources ?? [];
 
+  // Kinship of every person relative to the viewer's own card ("moi").
+  const selfId = tree?.mySelfPersonId ?? null;
+  const kinship = useMemo(() => {
+    const labels = new Map<string, string>();
+    if (!selfId || !tree) return labels;
+    const kins = computeKinships(selfId, tree.persons, treeUnions);
+    for (const person of tree.persons) {
+      const kin = kins.get(person.id);
+      if (kin) labels.set(person.id, kinshipLabel(kin, person.sex, lang));
+    }
+    return labels;
+  }, [selfId, tree, treeUnions, lang]);
+
+  // Classic tree vs radial fan (ancestors) view.
+  const [view, setView] = useState<'tree' | 'fan'>('tree');
+  const [fanFocusId, setFanFocusId] = useState<string | null>(null);
+  const fanFocus =
+    fanFocusId ??
+    (panel?.kind === 'person' ? panel.id : null) ??
+    selfId ??
+    tree?.persons[0]?.id ??
+    null;
+
   const title =
     panel?.kind === 'members'
       ? t('membersTitle')
@@ -210,6 +235,19 @@ export function TreeView() {
           {tree?.name ?? '…'}
         </h1>
         <div className="pointer-events-auto ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setView((v) => (v === 'tree' ? 'fan' : 'tree'))}
+            className={headerButton}
+          >
+            <FontAwesomeIcon
+              icon={view === 'tree' ? icons.chartPie : icons.sitemap}
+              className="sm:mr-1.5"
+            />
+            <span className="hidden sm:inline">
+              {view === 'tree' ? t('fanView') : t('treeView')}
+            </span>
+          </button>
           <button
             type="button"
             onClick={() => setPanel({ kind: 'sources' })}
@@ -245,25 +283,36 @@ export function TreeView() {
             <span className="size-8 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
           </div>
         ) : tree && tree.persons.length > 0 ? (
-          <TreeCanvas
-            persons={tree.persons as TreePerson[]}
-            unions={treeUnions}
-            selectedId={panel?.kind === 'person' ? panel.id : null}
-            selectedUnionId={panel?.kind === 'union' ? panel.id : null}
-            isAdmin={isAdmin ?? false}
-            onRemovePersons={removePersons}
-            positions={pos.positions}
-            move={pos.move}
-            commit={pos.commit}
-            reset={pos.reset}
-            resetAll={pos.resetAll}
-            onSelect={(value) =>
-              setPanel(value ? { kind: 'person', id: value } : null)
-            }
-            onSelectUnion={(unionId) =>
-              setPanel({ kind: 'union', id: unionId })
-            }
-          />
+          view === 'fan' && fanFocus ? (
+            <FanChart
+              persons={tree.persons as TreePerson[]}
+              unions={treeUnions}
+              focusId={fanFocus}
+              onFocus={setFanFocusId}
+            />
+          ) : (
+            <TreeCanvas
+              persons={tree.persons as TreePerson[]}
+              unions={treeUnions}
+              kinship={kinship}
+              selfId={selfId}
+              selectedId={panel?.kind === 'person' ? panel.id : null}
+              selectedUnionId={panel?.kind === 'union' ? panel.id : null}
+              isAdmin={isAdmin ?? false}
+              onRemovePersons={removePersons}
+              positions={pos.positions}
+              move={pos.move}
+              commit={pos.commit}
+              reset={pos.reset}
+              resetAll={pos.resetAll}
+              onSelect={(value) =>
+                setPanel(value ? { kind: 'person', id: value } : null)
+              }
+              onSelectUnion={(unionId) =>
+                setPanel({ kind: 'union', id: unionId })
+              }
+            />
+          )
         ) : (
           tree && (
             <div className="grid h-full place-items-center px-6">
@@ -308,6 +357,7 @@ export function TreeView() {
               treeId={id}
               others={others}
               unions={treeUnions}
+              selfPersonId={selfId}
               sources={sources}
               isAdmin={isAdmin ?? false}
               onError={fail}

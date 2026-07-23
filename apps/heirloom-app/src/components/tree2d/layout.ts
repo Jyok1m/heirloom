@@ -212,28 +212,78 @@ export function layoutTree(
     ordered.forEach((p, i) => indexInGen.set(p.id, i));
   }
 
-  const rowWidth = (count: number) => count * CARD_W + (count - 1) * GAP_X;
-  const maxRowWidth = Math.max(
-    CARD_W,
-    ...[...orderedByGen.values()].map((g) => rowWidth(g.length)),
-  );
+  // X-coordinates by iterative barycenter: pull each node toward the mean of its
+  // parents (top-down) then its children (bottom-up), re-packing each generation
+  // to keep the crossing-minimising order and a one-card minimum gap. This
+  // centres parents over their children instead of using a rigid grid.
+  const SPACING = CARD_W + GAP_X;
+  const childrenByParent = new Map<string, string[]>();
+  for (const [childId, ps] of parentsOf) {
+    for (const parentId of ps) {
+      childrenByParent.set(parentId, [
+        ...(childrenByParent.get(parentId) ?? []),
+        childId,
+      ]);
+    }
+  }
+
+  const xById = new Map<string, number>();
+  for (const gen of sortedGens) {
+    (orderedByGen.get(gen) ?? []).forEach((p, i) =>
+      xById.set(p.id, i * SPACING),
+    );
+  }
+  const meanX = (ids: string[]): number | undefined => {
+    const xs = ids
+      .map((id) => xById.get(id))
+      .filter((x): x is number => x !== undefined);
+    return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : undefined;
+  };
+  // Keep the row's order, enforcing the minimum gap (order already avoids
+  // crossings, so only spacing needs fixing).
+  const pack = (members: TreePerson[]) => {
+    for (let i = 1; i < members.length; i++) {
+      const min = (xById.get(members[i - 1].id) ?? 0) + SPACING;
+      if ((xById.get(members[i].id) ?? 0) < min) {
+        xById.set(members[i].id, min);
+      }
+    }
+  };
+
+  for (let pass = 0; pass < 8; pass++) {
+    const down = pass % 2 === 0;
+    const gens = down ? sortedGens : [...sortedGens].reverse();
+    for (const gen of gens) {
+      const members = orderedByGen.get(gen) ?? [];
+      for (const person of members) {
+        const desired = meanX(
+          down
+            ? (parentsOf.get(person.id) ?? [])
+            : (childrenByParent.get(person.id) ?? []),
+        );
+        if (desired !== undefined) xById.set(person.id, desired);
+      }
+      pack(members);
+    }
+  }
+
+  const xs = [...xById.values()];
+  const shift = PAD - (xs.length ? Math.min(...xs) : 0);
 
   // Auto placement, then apply manual overrides on top
   const boxes: PersonBox[] = [];
-  for (const [gen, members] of orderedByGen) {
-    const width = rowWidth(members.length);
-    const startX = PAD + (maxRowWidth - width) / 2;
+  for (const gen of sortedGens) {
     const autoY = PAD + gen * (CARD_H + GEN_GAP);
-    members.forEach((person, index) => {
+    for (const person of orderedByGen.get(gen) ?? []) {
       const override = overrides.get(person.id);
       boxes.push({
         person,
-        x: override?.x ?? startX + index * (CARD_W + GAP_X),
+        x: override?.x ?? (xById.get(person.id) ?? 0) + shift,
         y: override?.y ?? autoY,
         w: CARD_W,
         h: CARD_H,
       });
-    });
+    }
   }
 
   const centers = new Map(

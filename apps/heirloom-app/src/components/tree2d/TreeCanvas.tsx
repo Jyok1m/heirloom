@@ -64,6 +64,8 @@ export function TreeCanvas({
   resetAll,
   readOnly = false,
   mediaUrl = (id: string) => `/api/media/${id}/file`,
+  kinship,
+  selfId = null,
 }: {
   persons: TreePerson[];
   unions: TreeUnion[];
@@ -82,6 +84,9 @@ export function TreeCanvas({
   readOnly?: boolean;
   // Builds a profile-picture URL from a media id (differs on the public view).
   mediaUrl?: (mediaId: string) => string;
+  // Localised kinship label per person id, relative to the viewer ("moi").
+  kinship?: Map<string, string>;
+  selfId?: string | null;
 }) {
   const { t } = useI18n();
   const { confirm } = useNotify();
@@ -568,25 +573,45 @@ export function TreeCanvas({
                   </span>
                 )}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="line-clamp-2 text-sm font-medium leading-tight text-stone-800 dark:text-stone-100">
-                  {fullName(person)}
-                </span>
-                <span className="flex items-center gap-1.5 text-[11px] text-stone-400 dark:text-stone-500">
-                  <FontAwesomeIcon
-                    icon={
-                      person.sex === 'MALE'
-                        ? icons.male
-                        : person.sex === 'FEMALE'
-                          ? icons.female
-                          : icons.genderless
-                    }
-                  />
-                  {person.birthDate && (
-                    <span className="truncate">{person.birthDate}</span>
-                  )}
-                </span>
-              </span>
+              {(() => {
+                const kin = kinship?.get(person.id);
+                const isSelf = person.id === selfId;
+                return (
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={`${kin ? 'line-clamp-1' : 'line-clamp-2'} text-sm font-medium leading-tight text-stone-800 dark:text-stone-100`}
+                    >
+                      {fullName(person)}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[11px] text-stone-400 dark:text-stone-500">
+                      <FontAwesomeIcon
+                        icon={
+                          person.sex === 'MALE'
+                            ? icons.male
+                            : person.sex === 'FEMALE'
+                              ? icons.female
+                              : icons.genderless
+                        }
+                      />
+                      {person.birthDate && (
+                        <span className="truncate">{person.birthDate}</span>
+                      )}
+                    </span>
+                    {kin && (
+                      <span
+                        title={kin}
+                        className={`block truncate text-[11px] font-semibold ${
+                          isSelf
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-amber-700/75 dark:text-amber-500/75'
+                        }`}
+                      >
+                        {kin}
+                      </span>
+                    )}
+                  </span>
+                );
+              })()}
             </div>
           );
         })}

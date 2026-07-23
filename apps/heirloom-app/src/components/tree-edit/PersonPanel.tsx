@@ -27,6 +27,7 @@ import {
   PERSON_DETAIL,
   REMOVE_CHILD,
   SET_PEDIGREE,
+  SET_SELF_PERSON,
   UPDATE_PERSON,
 } from './operations';
 import { fieldClass, ghostButton, personName, Section, smallButton } from './ui';
@@ -46,6 +47,7 @@ export function PersonPanel({
   treeId,
   others,
   unions,
+  selfPersonId,
   sources,
   isAdmin,
   onError,
@@ -57,6 +59,7 @@ export function PersonPanel({
   treeId: string;
   others: NamedPerson[];
   unions: TreeUnion[];
+  selfPersonId: string | null;
   sources: { id: string; title: string }[];
   isAdmin: boolean;
   onError(): void;
@@ -81,6 +84,9 @@ export function PersonPanel({
   const [addChild] = useMutation(ADD_CHILD, { refetchQueries: REFETCH });
   const [removeChild] = useMutation(REMOVE_CHILD, { refetchQueries: REFETCH });
   const [setPedigree] = useMutation(SET_PEDIGREE, { refetchQueries: REFETCH });
+  const [setSelfPerson] = useMutation(SET_SELF_PERSON, {
+    refetchQueries: ['TreeCanvas'],
+  });
 
   const person = data?.person;
   const [form, setForm] = useState<Record<string, string> | null>(null);
@@ -153,6 +159,13 @@ export function PersonPanel({
   const removePhoto = () =>
     void updatePerson({
       variables: { id: person.id, input: { photoMediaId: null } },
+    }).catch(fail);
+
+  // "C'est moi": link the viewer to this person so cards show kinship to them.
+  const isSelf = selfPersonId === person.id;
+  const toggleSelf = () =>
+    void setSelfPerson({
+      variables: { treeId, personId: isSelf ? null : person.id },
     }).catch(fail);
 
   // Composite relationship shortcuts: create a blank relative, wire it up,
@@ -289,6 +302,17 @@ export function PersonPanel({
             {t('removePhoto')}
           </button>
         )}
+        <button
+          type="button"
+          onClick={toggleSelf}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+            isSelf
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'text-amber-700 ring-1 ring-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:ring-amber-500/40 dark:hover:bg-stone-800'
+          }`}
+        >
+          {isSelf ? `✓ ${t('thisIsMe')}` : t('thisIsMe')}
+        </button>
         <input
           ref={photoInputRef}
           type="file"

@@ -1,11 +1,15 @@
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link } from 'react-router-dom';
-import { ChatPanel } from '../components/ChatPanel';
 import { useAuth } from '../lib/auth';
 import { icons } from '../lib/icons';
 import { useI18n } from '../lib/i18n';
 import { useTitle } from '../lib/useTitle';
+
+const primaryCta =
+  'rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-6 py-3 text-sm font-medium text-white shadow-md shadow-amber-900/20 transition hover:from-amber-500 hover:to-amber-600';
+const secondaryCta =
+  'rounded-full border border-amber-700/25 px-6 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100/60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-stone-800';
 
 function Feature({
   icon,
@@ -39,7 +43,7 @@ export function Landing() {
   useTitle();
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col items-center px-4 pb-16 pt-12 sm:px-6 sm:pt-16">
+    <main className="mx-auto flex max-w-5xl flex-col items-center px-4 pb-20 pt-14 sm:px-6 sm:pt-20">
       <div className="max-w-2xl text-center">
         <p className="mx-auto w-fit rounded-full bg-amber-100/80 px-3 py-1 text-xs font-medium tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
           {t('tagline')}
@@ -50,38 +54,46 @@ export function Landing() {
         <p className="mt-4 text-base leading-relaxed text-stone-600 sm:text-lg dark:text-stone-400">
           {t('heroSubtitle')}
         </p>
+
+        <div className="mt-8 flex flex-col items-center gap-3">
+          {user ? (
+            <>
+              <Link to="/trees" className={primaryCta}>
+                <FontAwesomeIcon icon={icons.tree} className="mr-2" />
+                {t('treesTitle')}
+              </Link>
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                {t('signInTitle')}, {user.displayName ?? user.email}
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link to="/login" className={primaryCta}>
+                {t('login')}
+              </Link>
+              <Link to="/signup" className={secondaryCta}>
+                {t('createInstance')}
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="mt-10 w-full max-w-2xl">
-        {user ? (
-          <div className="flex justify-center">
-            <Link
-              to="/trees"
-              className="rounded-full bg-linear-to-b from-amber-600 to-amber-700 px-6 py-3 text-sm font-medium text-white shadow-md shadow-amber-900/20 transition hover:from-amber-500 hover:to-amber-600"
-            >
-              {t('treesTitle')} →
-            </Link>
-          </div>
-        ) : (
-          <ChatPanel />
-        )}
-      </div>
-
-      <div className="mt-10 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
+      <div className="mt-14 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
         <Feature
           icon={icons.tree}
           title={t('featureTree')}
           text={t('featureTreeText')}
         />
         <Feature
-          icon={icons.assistant}
-          title={t('featureAssistant')}
-          text={t('featureAssistantText')}
-        />
-        <Feature
           icon={icons.house}
           title={t('featureSelfHosted')}
           text={t('featureSelfHostedText')}
+        />
+        <Feature
+          icon={icons.assistant}
+          title={t('featureAssistant')}
+          text={t('featureAssistantText')}
         />
       </div>
     </main>

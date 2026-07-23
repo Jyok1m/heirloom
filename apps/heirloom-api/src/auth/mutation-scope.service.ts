@@ -21,6 +21,9 @@ export class MutationScopeService {
     args: Record<string, any>,
   ): Promise<string | undefined> {
     switch (field) {
+      // A member marking which person they are, scoped to that tree
+      case 'setSelfPerson':
+        return args.treeId;
       case 'createPerson':
       case 'createUnion':
       case 'createSource':

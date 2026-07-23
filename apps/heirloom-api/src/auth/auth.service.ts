@@ -150,6 +150,36 @@ export class AuthService {
     };
   }
 
+  // -------------------------------------------------------------- self person
+
+  async getSelfPersonId(userId: string, treeId: string): Promise<string | null> {
+    const membership = await this.prisma.treeMembership.findUnique({
+      where: { userId_treeId: { userId, treeId } },
+      select: { selfPersonId: true },
+    });
+    return membership?.selfPersonId ?? null;
+  }
+
+  // "C'est moi": links the viewer to a person so cards can show kinship. Upserts
+  // the membership so an admin without one can also identify themselves.
+  async setSelfPerson(userId: string, treeId: string, personId: string | null) {
+    if (personId) {
+      const person = await this.prisma.person.findUnique({
+        where: { id: personId },
+        select: { treeId: true },
+      });
+      if (!person || person.treeId !== treeId) {
+        throw new BadRequestException('Person must belong to this tree');
+      }
+    }
+    await this.prisma.treeMembership.upsert({
+      where: { userId_treeId: { userId, treeId } },
+      create: { userId, treeId, role: 'CONTRIBUTOR', selfPersonId: personId },
+      update: { selfPersonId: personId },
+    });
+    return true;
+  }
+
   // ------------------------------------------------------------------ members
 
   async listMembers(treeId: string) {
