@@ -105,4 +105,15 @@ export class UnionEventsResolver {
     const events = await this.loaders.eventsByUnionId.load(union.id);
     return events.some((e) => DISSOLVED_TYPES.includes(e.type));
   }
+
+  // Verbatim date of the union's start (marriage / getting together), for the
+  // small label shown next to the union point on the canvas.
+  @ResolveField(() => String, { nullable: true })
+  async date(@Parent() union: Union): Promise<string | null> {
+    const events = await this.loaders.eventsByUnionId.load(union.id);
+    const start = events.find(
+      (e) => e.type === EventType.MARRIAGE || e.type === EventType.ENGAGEMENT,
+    );
+    return start?.dateValue ?? null;
+  }
 }

@@ -85,7 +85,7 @@ export class TreesService {
             type: true,
             partners: { select: { personId: true } },
             children: { select: { personId: true } },
-            events: { select: { type: true } },
+            events: { select: { type: true, dateValue: true } },
           },
         },
       },
@@ -100,13 +100,20 @@ export class TreesService {
           events.find((e) => e.type === EventType.BIRTH)?.dateValue ?? null,
         deceased: events.some((e) => DEATH_TYPES.includes(e.type)),
       })),
-      unions: tree.unions.map((union) => ({
-        id: union.id,
-        type: union.type,
-        dissolved: union.events.some((e) => DISSOLVED_TYPES.includes(e.type)),
-        partnerIds: union.partners.map((partner) => partner.personId),
-        childIds: union.children.map((child) => child.personId),
-      })),
+      unions: tree.unions.map((union) => {
+        const start = union.events.find(
+          (e) =>
+            e.type === EventType.MARRIAGE || e.type === EventType.ENGAGEMENT,
+        );
+        return {
+          id: union.id,
+          type: union.type,
+          dissolved: union.events.some((e) => DISSOLVED_TYPES.includes(e.type)),
+          date: start?.dateValue ?? null,
+          partnerIds: union.partners.map((partner) => partner.personId),
+          childIds: union.children.map((child) => child.personId),
+        };
+      }),
     };
   }
 

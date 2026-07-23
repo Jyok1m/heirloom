@@ -85,15 +85,27 @@ export class PersonsService {
   }
 
   async delete(id: string) {
-    const person = await this.prisma.person.findUnique({
-      where: { id },
-      select: { photoMediaId: true },
-    });
+    // Everything the person touched: its avatar and every attached media.
+    const [person, links] = await Promise.all([
+      this.prisma.person.findUnique({
+        where: { id },
+        select: { photoMediaId: true },
+      }),
+      this.prisma.mediaLink.findMany({
+        where: { personId: id },
+        select: { mediaId: true },
+      }),
+    ]);
+    const mediaIds = new Set(links.map((link) => link.mediaId));
+    if (person?.photoMediaId) mediaIds.add(person.photoMediaId);
+
     const deleted = await this.prisma.person
       .delete({ where: { id } })
       .catch((error): never => rethrowAsNotFound(error, 'Person', id));
-    if (person?.photoMediaId) {
-      await this.deleteMediaIfOrphan(person.photoMediaId);
+
+    // The delete cascaded the person's media links; drop the now-orphaned media.
+    for (const mediaId of mediaIds) {
+      await this.deleteMediaIfOrphan(mediaId);
     }
     return deleted;
   }

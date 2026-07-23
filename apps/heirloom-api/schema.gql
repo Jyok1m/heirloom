@@ -279,6 +279,7 @@ type Tree {
 type Union {
   children: [UnionChild!]!
   createdAt: DateTime!
+  date: String
   dissolved: Boolean!
   events: [Event!]!
   gedcomId: String
