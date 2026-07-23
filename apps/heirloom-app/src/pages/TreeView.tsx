@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MembersPanel } from '../components/MembersPanel';
+import { AddressField } from '../components/tree-edit/AddressField';
 import { PersonPanel } from '../components/tree-edit/PersonPanel';
 import { SourcesPanel } from '../components/tree-edit/SourcesPanel';
 import {
@@ -26,7 +27,13 @@ import {
 import { usePositions } from '../components/tree2d/positions';
 import type { Sex } from '../generated/graphql';
 import { icons } from '../lib/icons';
-import { displayName, enumLabel, SEXES } from '../lib/genealogy';
+import {
+  displayName,
+  enumLabel,
+  NAME_PREFIXES,
+  NAME_SUFFIXES,
+  SEXES,
+} from '../lib/genealogy';
 import { computeKinships, kinshipLabel } from '../lib/kinship';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
@@ -35,6 +42,9 @@ import { useNotify } from '../lib/notify';
 
 const headerButton =
   'pointer-events-auto rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-medium text-stone-600 shadow-sm ring-1 ring-stone-200 backdrop-blur transition hover:bg-white dark:bg-stone-800/85 dark:text-stone-300 dark:ring-stone-700';
+
+const addLabelClass =
+  'flex flex-col gap-1 text-xs font-medium text-stone-500 dark:text-stone-400';
 
 function AddPersonForm({
   treeId,
@@ -48,14 +58,22 @@ function AddPersonForm({
   const { t, lang } = useI18n();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [birthName, setBirthName] = useState('');
   const [sex, setSex] = useState('MALE');
+  const [nickname, setNickname] = useState('');
+  const [namePrefix, setNamePrefix] = useState('');
+  const [nameSuffix, setNameSuffix] = useState('');
+  const [notes, setNotes] = useState('');
+  const [address, setAddress] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [createPerson, { loading }] = useMutation(CREATE_PERSON, {
     refetchQueries: ['TreeCanvas'],
   });
 
   return (
     <form
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-2.5"
       onSubmit={(event) => {
         event.preventDefault();
         void createPerson({
@@ -64,7 +82,15 @@ function AddPersonForm({
               treeId,
               firstName: firstName || null,
               lastName: lastName || null,
+              birthName: birthName || null,
+              namePrefix: namePrefix || null,
+              nameSuffix: nameSuffix || null,
+              nickname: nickname || null,
               sex: sex as Sex,
+              notes: notes || null,
+              address: address || null,
+              email: email || null,
+              phone: phone || null,
             },
           },
         })
@@ -75,37 +101,125 @@ function AddPersonForm({
           .catch(onError);
       }}
     >
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <label className={addLabelClass}>
+        {t('firstNamesL')}
         <input
           autoFocus
-          placeholder={t('firstNamesL')}
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           className={fieldClass}
         />
-        <input
-          placeholder={t('familyNameL')}
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          className={fieldClass}
-        />
+      </label>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className={addLabelClass}>
+          {t('familyNameL')}
+          <input
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className={fieldClass}
+          />
+        </label>
+        <label className={addLabelClass}>
+          {t('maidenNameL')}
+          <input
+            value={birthName}
+            onChange={(e) => setBirthName(e.target.value)}
+            className={fieldClass}
+          />
+        </label>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {SEXES.map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setSex(value)}
-            className={`rounded-lg border px-2 py-2 text-sm font-medium transition ${
-              sex === value
-                ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-stone-800 dark:text-amber-300'
-                : 'border-stone-200 text-stone-500 hover:border-amber-300 dark:border-stone-700 dark:text-stone-300'
-            }`}
-          >
-            {enumLabel('sex', value, lang)}
-          </button>
-        ))}
-      </div>
+      <label className={addLabelClass}>
+        {t('sexL')}
+        <div className="grid grid-cols-3 gap-2">
+          {SEXES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setSex(value)}
+              className={`rounded-lg border px-2 py-2 text-sm font-medium transition ${
+                sex === value
+                  ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-stone-800 dark:text-amber-300'
+                  : 'border-stone-200 text-stone-500 hover:border-amber-300 dark:border-stone-700 dark:text-stone-300'
+              }`}
+            >
+              {enumLabel('sex', value, lang)}
+            </button>
+          ))}
+        </div>
+      </label>
+      <details className="rounded-xl border border-stone-200/70 px-3 py-2 dark:border-stone-700/60">
+        <summary className="cursor-pointer select-none text-xs font-medium text-stone-500 marker:text-stone-400 dark:text-stone-400">
+          {t('moreInfo')}
+        </summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <input
+            placeholder={t('nicknameL')}
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            className={fieldClass}
+          />
+          <div className="flex gap-2">
+            <input
+              list="add-name-prefix-options"
+              placeholder={t('prefixL')}
+              value={namePrefix}
+              onChange={(e) => setNamePrefix(e.target.value)}
+              className={`${fieldClass} flex-1`}
+            />
+            <input
+              list="add-name-suffix-options"
+              placeholder={t('suffixL')}
+              value={nameSuffix}
+              onChange={(e) => setNameSuffix(e.target.value)}
+              className={`${fieldClass} flex-1`}
+            />
+            <datalist id="add-name-prefix-options">
+              {NAME_PREFIXES.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+            <datalist id="add-name-suffix-options">
+              {NAME_SUFFIXES.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+          </div>
+          <textarea
+            placeholder={t('notesL')}
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className={fieldClass}
+          />
+        </div>
+      </details>
+      <details className="rounded-xl border border-stone-200/70 px-3 py-2 dark:border-stone-700/60">
+        <summary className="cursor-pointer select-none text-xs font-medium text-stone-500 marker:text-stone-400 dark:text-stone-400">
+          {t('contactL')}
+        </summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <AddressField
+            value={address}
+            onChange={setAddress}
+            placeholder={t('addressL')}
+            className={fieldClass}
+          />
+          <input
+            type="email"
+            placeholder={t('emailL')}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={fieldClass}
+          />
+          <input
+            type="tel"
+            placeholder={t('phoneL')}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className={fieldClass}
+          />
+        </div>
+      </details>
       <button type="submit" disabled={loading} className={smallButton}>
         {loading ? t('submitting') : t('createAction')}
       </button>
