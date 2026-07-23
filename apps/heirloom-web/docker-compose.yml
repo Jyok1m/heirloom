@@ -1,0 +1,19 @@
+# Standalone build & run of the marketing site (no api/db needed).
+# From this directory:  docker compose up -d --build   ->  http://127.0.0.1:8082
+#
+# The build context is the monorepo root (the Dockerfile installs from the
+# workspace). Override the PUBLIC_* build args via a .env file or the shell.
+
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/heirloom-web/Dockerfile
+      args:
+        PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8082}
+        PUBLIC_GITHUB_URL: ${PUBLIC_GITHUB_URL:-https://github.com/Jyok1m/heirloom}
+        PUBLIC_DEMO_URL: ${PUBLIC_DEMO_URL:-}
+    image: jyok1m/heirloom-web:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:80"

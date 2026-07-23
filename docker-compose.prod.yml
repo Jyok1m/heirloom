@@ -67,6 +67,15 @@ services:
       - api
     networks: [internal]
 
+  # Marketing site (heirloom-app.com) — fully static, no backend dependency.
+  # Put it behind your reverse proxy on its own domain, like `app`.
+  web:
+    image: jyok1m/heirloom-web:main
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:80"
+    networks: [internal]
+
 networks:
   internal:
 

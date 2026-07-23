@@ -34,7 +34,7 @@ target. All variables are prefixed `PUBLIC_` so they are inlined at build time.
 | --- | --- |
 | `PUBLIC_URL` | Canonical site origin (SEO). |
 | `PUBLIC_GITHUB_URL` | Source repository link. |
-| `PUBLIC_DEMO_URL` | Read-only public tree view, e.g. `https://app.heirloom-app.com/view/<token>`. |
+| `PUBLIC_DEMO_URL` | Read-only public tree view, e.g. `https://heirloom.joachimjasmin.com/view/<token>`. |
 
 The demo target is the `/view/<token>` public snapshot of a seeded tree. Create
 it as an admin on a running instance (enable sharing on the demo tree), then set

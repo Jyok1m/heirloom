@@ -27,7 +27,7 @@ pipeline {
         booleanParam(
             name: 'FORCE_BUILD',
             defaultValue: false,
-            description: 'Build & deploy both apps regardless of change detection',
+            description: 'Build & deploy all apps (api, app, web) regardless of change detection',
         )
     }
 
@@ -35,15 +35,25 @@ pipeline {
         REGISTRY   = 'jyok1m'
         API_IMAGE  = "${REGISTRY}/heirloom-api"
         APP_IMAGE  = "${REGISTRY}/heirloom-app"
+        WEB_IMAGE  = "${REGISTRY}/heirloom-web"
 
         // Deploy target — self-hosted host running docker compose at REMOTE_DIR.
         PROJECT     = 'heirloom'
         SSH_HOST    = 'host.docker.internal'
         REMOTE_DIR  = '/opt/heirloom'
 
-        // Absolute public URL baked into the frontend (canonical/OG/sitemap).
-        // Leave empty to fall back to relative behaviour; set to the prod domain.
-        PUBLIC_URL  = 'https://heirloom-app.com'
+        // Product app domain — absolute public URL baked into the frontend
+        // (canonical/OG/sitemap). Distinct from the marketing site below.
+        PUBLIC_URL  = 'https://heirloom.joachimjasmin.com'
+
+        // Marketing site (heirloom-web) build-time vars — Astro inlines PUBLIC_*.
+        // WEB_PUBLIC_URL is the vitrine's own domain (heirloom-app.com), separate
+        // from the product app. WEB_DEMO_URL points at a seeded public tree view
+        // on the app (https://heirloom.joachimjasmin.com/view/<token>); empty
+        // falls back to the docs.
+        WEB_PUBLIC_URL = 'https://heirloom-app.com'
+        WEB_GITHUB_URL = 'https://github.com/Jyok1m/heirloom'
+        WEB_DEMO_URL   = 'https://heirloom.joachimjasmin.com/view/2PRi8WGkxq5lV4qnCg2x6bPvl3I4OLzj'
     }
 
     stages {
@@ -103,6 +113,7 @@ pipeline {
 
                     env.BUILD_API = (shared || files.any { it.startsWith('apps/heirloom-api/') }) ? 'true' : 'false'
                     env.BUILD_APP = (shared || files.any { it.startsWith('apps/heirloom-app/') }) ? 'true' : 'false'
+                    env.BUILD_WEB = (shared || files.any { it.startsWith('apps/heirloom-web/') }) ? 'true' : 'false'
 
                     // Run migrations only when a Prisma migration is actually added.
                     // This is a subset of BUILD_API (migrations live under the API dir),
@@ -112,8 +123,8 @@ pipeline {
                         files.any { it.startsWith('apps/heirloom-api/prisma/migrations/') }
                     ) ? 'true' : 'false'
 
-                    echo "commit=${env.GIT_SHA}  build-api=${env.BUILD_API}  build-app=${env.BUILD_APP}  migrate=${env.RUN_MIGRATE}"
-                    if (env.BUILD_API == 'false' && env.BUILD_APP == 'false') {
+                    echo "commit=${env.GIT_SHA}  build-api=${env.BUILD_API}  build-app=${env.BUILD_APP}  build-web=${env.BUILD_WEB}  migrate=${env.RUN_MIGRATE}"
+                    if (env.BUILD_API == 'false' && env.BUILD_APP == 'false' && env.BUILD_WEB == 'false') {
                         echo 'No app changes — nothing to build or deploy.'
                     }
                 }
@@ -186,10 +197,41 @@ pipeline {
             }
         }
 
+        stage('Build & push Web') {
+            when {
+                branch 'main'
+                expression { env.BUILD_WEB == 'true' }
+            }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS',
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                        docker build \
+                            -f apps/heirloom-web/Dockerfile \
+                            --build-arg PUBLIC_URL="$WEB_PUBLIC_URL" \
+                            --build-arg PUBLIC_GITHUB_URL="$WEB_GITHUB_URL" \
+                            --build-arg PUBLIC_DEMO_URL="$WEB_DEMO_URL" \
+                            -t "$WEB_IMAGE:$GIT_SHA" \
+                            -t "$WEB_IMAGE:main" .
+
+                        docker push "$WEB_IMAGE:$GIT_SHA"
+                        docker push "$WEB_IMAGE:main"
+
+                        docker logout
+                    '''
+                }
+            }
+        }
+
         stage('Deploy') {
             when {
                 branch 'main'
-                expression { env.BUILD_API == 'true' || env.BUILD_APP == 'true' }
+                expression { env.BUILD_API == 'true' || env.BUILD_APP == 'true' || env.BUILD_WEB == 'true' }
             }
             steps {
                 withCredentials([
@@ -212,6 +254,7 @@ pipeline {
                         def services = []
                         if (env.BUILD_API == 'true') { services << 'api' }
                         if (env.BUILD_APP == 'true') { services << 'app' }
+                        if (env.BUILD_WEB == 'true') { services << 'web' }
                         env.SERVICES = services.join(' ')
                     }
                     // Remote script passed as a single SSH argument (not a heredoc:
@@ -239,7 +282,7 @@ pipeline {
     }
 
     post {
-        success { echo "Deployed heirloom @ ${env.GIT_SHA} (api=${env.BUILD_API}, app=${env.BUILD_APP})" }
+        success { echo "Deployed heirloom @ ${env.GIT_SHA} (api=${env.BUILD_API}, app=${env.BUILD_APP}, web=${env.BUILD_WEB})" }
         failure { echo 'Pipeline failed — nothing deployed.' }
     }
 }
