@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { isPrismaError, rethrowAsNotFound } from '../common/prisma-errors';
-import { Pedigree } from '../generated/prisma/enums';
+import { EventType, Pedigree, UnionType } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnionInput, UpdateUnionInput } from './dto/union.inputs';
 
@@ -27,9 +27,24 @@ export class RelationshipsService {
 
   async create({ treeId, ...data }: CreateUnionInput) {
     try {
-      return await this.prisma.union.create({
+      const union = await this.prisma.union.create({
         data: { ...data, tree: { connect: { id: treeId } } },
       });
+      // Marriage seeds a MARRIAGE event; a civil union / partnership seeds a
+      // "getting together" (ENGAGEMENT) event. UNKNOWN unions only link parents.
+      const unionEvent =
+        union.type === UnionType.MARRIAGE
+          ? EventType.MARRIAGE
+          : union.type === UnionType.CIVIL_UNION ||
+              union.type === UnionType.PARTNERSHIP
+            ? EventType.ENGAGEMENT
+            : null;
+      if (unionEvent) {
+        await this.prisma.event.create({
+          data: { type: unionEvent, unionId: union.id },
+        });
+      }
+      return union;
     } catch (error) {
       rethrowAsNotFound(error, 'Tree', treeId);
     }

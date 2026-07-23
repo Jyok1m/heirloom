@@ -2,7 +2,7 @@ import type { Lang } from './i18n';
 
 // Enum value lists and their bilingual labels, mirroring the Prisma schema.
 
-export const SEXES = ['MALE', 'FEMALE', 'OTHER', 'UNKNOWN'] as const;
+export const SEXES = ['MALE', 'FEMALE', 'NON_BINARY'] as const;
 
 // Datalist suggestions (free text is still allowed) — GEDCOM NPFX / NSFX
 export const NAME_PREFIXES = [
@@ -12,22 +12,23 @@ export const NAME_SUFFIXES = [
   'Jr', 'Sr', 'père', 'fils', 'aîné', 'cadet', 'II', 'III', 'IV',
 ] as const;
 
-// Name display honours the "prénom usuel" and "nom d'usage" when set, falling
-// back to the full given name and the birth surname.
+// firstName holds comma-separated given names; the first one is the everyday
+// name shown on cards.
 export interface DisplayNameParts {
   firstName?: string | null;
-  usualName?: string | null;
   lastName?: string | null;
-  usedName?: string | null;
 }
+const firstGiven = (firstName?: string | null) =>
+  (firstName ?? '').split(',')[0].trim();
+
 export function displayName(p?: DisplayNameParts): string {
-  const given = p?.usualName || p?.firstName || '';
-  const family = p?.usedName || p?.lastName || '';
-  return [given, family].filter(Boolean).join(' ');
+  return [firstGiven(p?.firstName), p?.lastName ?? '']
+    .filter(Boolean)
+    .join(' ');
 }
 export function displayInitials(p?: DisplayNameParts): string {
-  const given = p?.usualName || p?.firstName || '';
-  const family = p?.usedName || p?.lastName || '';
+  const given = firstGiven(p?.firstName);
+  const family = p?.lastName ?? '';
   return ((given[0] ?? '') + (family[0] ?? '')).toUpperCase() || '·';
 }
 
@@ -106,37 +107,17 @@ export const UNION_TYPES = [
 export const PEDIGREES = ['BIRTH', 'ADOPTED', 'FOSTER', 'UNKNOWN'] as const;
 export const MEDIA_TYPES = ['IMAGE', 'DOCUMENT', 'AUDIO', 'VIDEO'] as const;
 
-// Events attached to a person vs to a union (backend enforces the match)
-export const PERSON_EVENT_TYPES = [
-  'BIRTH',
-  'BAPTISM',
-  'DEATH',
-  'BURIAL',
-  'CREMATION',
-  'OCCUPATION',
-  'RESIDENCE',
-  'EDUCATION',
-  'EMIGRATION',
-  'IMMIGRATION',
-  'NATURALIZATION',
-  'OTHER',
-] as const;
-export const UNION_EVENT_TYPES = [
-  'MARRIAGE',
-  'MARRIAGE_BANNS',
-  'ENGAGEMENT',
-  'DIVORCE',
-  'ANNULMENT',
-  'OTHER',
-] as const;
+// Simplified life-event set. Person: birth / death. Union: getting together /
+// marriage / separation. (The backend enforces the person-vs-union split.)
+export const PERSON_EVENT_TYPES = ['BIRTH', 'DEATH'] as const;
+export const UNION_EVENT_TYPES = ['ENGAGEMENT', 'MARRIAGE', 'DIVORCE'] as const;
 
 type Labels = Record<string, { en: string; fr: string }>;
 
 const SEX: Labels = {
   MALE: { en: 'Male', fr: 'Homme' },
   FEMALE: { en: 'Female', fr: 'Femme' },
-  OTHER: { en: 'Other', fr: 'Autre' },
-  UNKNOWN: { en: 'Unknown', fr: 'Inconnu' },
+  NON_BINARY: { en: 'Non-binary', fr: 'Non-binaire' },
 };
 
 const RELIGION: Labels = {
@@ -181,8 +162,8 @@ const EVENT_TYPE: Labels = {
   NATURALIZATION: { en: 'Naturalization', fr: 'Naturalisation' },
   MARRIAGE: { en: 'Marriage', fr: 'Mariage' },
   MARRIAGE_BANNS: { en: 'Marriage banns', fr: 'Bans de mariage' },
-  ENGAGEMENT: { en: 'Engagement', fr: 'Fiançailles' },
-  DIVORCE: { en: 'Divorce', fr: 'Divorce' },
+  ENGAGEMENT: { en: 'Getting together', fr: 'Mise en couple' },
+  DIVORCE: { en: 'Separation', fr: 'Séparation' },
   ANNULMENT: { en: 'Annulment', fr: 'Annulation' },
   OTHER: { en: 'Other', fr: 'Autre' },
 };

@@ -84,7 +84,14 @@ export class AuthGuard implements CanActivate {
           field,
           gqlContext.getArgs(),
         );
-        if (!treeId || !(await this.access.canContribute(req.user, treeId))) {
+        // Identifying yourself ("c'est moi") is personal membership state, not
+        // tree editing: any member may do it. Everything else needs contributor.
+        const allowed =
+          treeId != null &&
+          (field === 'setSelfPerson'
+            ? await this.access.canView(req.user, treeId)
+            : await this.access.canContribute(req.user, treeId));
+        if (!allowed) {
           throw new ForbiddenException(
             'You need contributor access to this tree',
           );

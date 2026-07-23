@@ -1,69 +1,55 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useRef, useState } from 'react';
-import type { Pedigree, Religion, Sex } from '../../generated/graphql';
+import type { Sex } from '../../generated/graphql';
 import {
-  bloodRelatives,
-  coupledPeople,
   enumLabel,
   NAME_PREFIXES,
   NAME_SUFFIXES,
-  PEDIGREES,
-  RELIGIONS,
   SEXES,
 } from '../../lib/genealogy';
-import type { TreeUnion } from '../tree2d/layout';
 import { icons } from '../../lib/icons';
-import { useI18n } from '../../lib/i18n';
+import { useI18n, type TranslationKey } from '../../lib/i18n';
 import { useNotify } from '../../lib/notify';
+import { AddressField } from './AddressField';
 import { EventList } from './EventList';
 import { MediaList } from './MediaList';
 import {
   ADD_CHILD,
   ADD_PARTNER,
+  CREATE_EVENT,
   CREATE_PERSON,
   CREATE_UNION,
   DELETE_PERSON,
   PERSON_DETAIL,
-  REMOVE_CHILD,
-  SET_PEDIGREE,
   SET_SELF_PERSON,
   UPDATE_PERSON,
+  UPDATE_UNION,
 } from './operations';
-import { fieldClass, ghostButton, personName, Section, smallButton } from './ui';
-
-interface NamedPerson {
-  id: string;
-  firstName?: string | null;
-  usualName?: string | null;
-  lastName?: string | null;
-  usedName?: string | null;
-}
+import { fieldClass, Section, smallButton } from './ui';
 
 const REFETCH = ['PersonDetail', 'TreeCanvas', 'UnionDetail'];
+
+// Male/female accent colours for the relationship buttons
+const M = '#5f8a8f';
+const F = '#c0714a';
 
 export function PersonPanel({
   personId,
   treeId,
-  others,
-  unions,
   selfPersonId,
   sources,
   isAdmin,
   onError,
-  onOpenUnion,
   onOpenPerson,
   onPlaceRelative,
 }: {
   personId: string;
   treeId: string;
-  others: NamedPerson[];
-  unions: TreeUnion[];
   selfPersonId: string | null;
   sources: { id: string; title: string }[];
   isAdmin: boolean;
   onError(): void;
-  onOpenUnion(id: string): void;
   onOpenPerson(id: string): void;
   onPlaceRelative(
     anchorId: string,
@@ -80,10 +66,10 @@ export function PersonPanel({
   const [deletePerson] = useMutation(DELETE_PERSON, { refetchQueries: REFETCH });
   const [createPerson] = useMutation(CREATE_PERSON, { refetchQueries: REFETCH });
   const [createUnion] = useMutation(CREATE_UNION, { refetchQueries: REFETCH });
+  const [updateUnion] = useMutation(UPDATE_UNION, { refetchQueries: REFETCH });
   const [addPartner] = useMutation(ADD_PARTNER, { refetchQueries: REFETCH });
   const [addChild] = useMutation(ADD_CHILD, { refetchQueries: REFETCH });
-  const [removeChild] = useMutation(REMOVE_CHILD, { refetchQueries: REFETCH });
-  const [setPedigree] = useMutation(SET_PEDIGREE, { refetchQueries: REFETCH });
+  const [createEvent] = useMutation(CREATE_EVENT, { refetchQueries: REFETCH });
   const [setSelfPerson] = useMutation(SET_SELF_PERSON, {
     refetchQueries: ['TreeCanvas'],
   });
@@ -105,28 +91,19 @@ export function PersonPanel({
   // Initialize the identity form once the person loads / changes
   const current = form ?? {
     firstName: person.firstName ?? '',
-    usualName: person.usualName ?? '',
     lastName: person.lastName ?? '',
-    usedName: person.usedName ?? '',
+    birthName: person.birthName ?? '',
     namePrefix: person.namePrefix ?? '',
     nameSuffix: person.nameSuffix ?? '',
     nickname: person.nickname ?? '',
     sex: person.sex,
-    religion: person.religion,
     notes: person.notes ?? '',
+    address: person.address ?? '',
+    email: person.email ?? '',
+    phone: person.phone ?? '',
   };
   const set = (key: string, value: string) =>
     setForm({ ...current, [key]: value });
-
-  const otherIds = new Set(person.unions.flatMap((u) => u.partners.map((p) => p.id)));
-  const partnerCandidates = others.filter((p) => p.id !== person.id);
-
-  // Never suggest this person's blood relatives (incest) or someone already in
-  // a couple as a new partner.
-  const personRelatives = bloodRelatives(person.id, unions);
-  const coupled = coupledPeople(unions);
-  const forbiddenPartner = (id: string) =>
-    otherIds.has(id) || personRelatives.has(id) || coupled.has(id);
 
   const fail = () => onError();
 
@@ -168,12 +145,10 @@ export function PersonPanel({
       variables: { treeId, personId: isSelf ? null : person.id },
     }).catch(fail);
 
-  // Composite relationship shortcuts: create a blank relative, wire it up,
-  // then open its panel so the user can fill in the details.
-  const blankPerson = async () => {
-    const result = await createPerson({
-      variables: { input: { treeId, sex: 'UNKNOWN' as Sex } },
-    });
+  // The only way to grow the tree: one tap adds a gendered relative, wires the
+  // (in)famous union/child links behind the scenes, and opens its card.
+  const blankPerson = async (sex: Sex) => {
+    const result = await createPerson({ variables: { input: { treeId, sex } } });
     const id = result.data?.createPerson.id;
     if (!id) throw new Error('create failed');
     return id;
@@ -194,17 +169,45 @@ export function PersonPanel({
       .finally(() => setRelBusy(false));
   };
 
-  const addSpouse = () =>
+  // A parent-union to hang parents/siblings on (created if the person has none).
+  const parentUnion = async () => {
+    const existing = person.parentUnions[0]?.id;
+    if (existing) return existing;
+    const union = await createUnion({
+      variables: { input: { treeId, type: 'UNKNOWN' } },
+    });
+    const unionId = union.data!.createUnion.id;
+    await addChild({ variables: { input: { unionId, personId: person.id } } });
+    return unionId;
+  };
+
+  const addParentOf = (sex: Sex) =>
+    runRelative('parent', async () => {
+      const parentId = await blankPerson(sex);
+      await addPartner({ variables: { unionId: await parentUnion(), personId: parentId } });
+      return parentId;
+    });
+
+  const addSiblingOf = (sex: Sex) =>
+    runRelative('sibling', async () => {
+      const siblingId = await blankPerson(sex);
+      await addChild({
+        variables: { input: { unionId: await parentUnion(), personId: siblingId } },
+      });
+      return siblingId;
+    });
+
+  const addSpouseOf = (sex: Sex, type: 'MARRIAGE' | 'PARTNERSHIP') =>
     runRelative('spouse', async () => {
-      const spouseId = await blankPerson();
-      // Complete a single-parent union of this person (so its children become
-      // shared with the new spouse) rather than starting a separate one.
-      const soloUnion = person.unions.find((u) => u.partners.length === 1);
-      let unionId = soloUnion?.id;
-      if (!unionId) {
-        const union = await createUnion({
-          variables: { input: { treeId, type: 'MARRIAGE' } },
-        });
+      const spouseId = await blankPerson(sex);
+      // Reuse a single-parent union (so an already-added child is shared) and
+      // upgrade its type; otherwise create a fresh one (+ its marriage event).
+      const solo = person.unions.find((u) => u.partners.length === 1);
+      let unionId = solo?.id;
+      if (unionId) {
+        await updateUnion({ variables: { id: unionId, input: { type } } });
+      } else {
+        const union = await createUnion({ variables: { input: { treeId, type } } });
         unionId = union.data!.createUnion.id;
         await addPartner({ variables: { unionId, personId: person.id } });
       }
@@ -212,11 +215,10 @@ export function PersonPanel({
       return spouseId;
     });
 
-  const addChildRelative = () =>
+  const addChildOf = (sex: Sex) =>
     runRelative('child', async () => {
-      const childId = await blankPerson();
-      // Prefer an existing couple so both partners parent the child; fall back
-      // to the person's first union, else a new single-parent union.
+      const childId = await blankPerson(sex);
+      // Prefer an existing couple so both partners parent the child.
       const couple = person.unions.find((u) => u.partners.length >= 2);
       let unionId = couple?.id ?? person.unions[0]?.id;
       if (!unionId) {
@@ -230,41 +232,41 @@ export function PersonPanel({
       return childId;
     });
 
-  const addParent = () =>
-    runRelative('parent', async () => {
-      const parentId = await blankPerson();
-      let unionId = person.parentUnions[0]?.id;
-      if (!unionId) {
-        const union = await createUnion({
-          variables: { input: { treeId, type: 'UNKNOWN' } },
-        });
-        unionId = union.data!.createUnion.id;
-        await addChild({ variables: { input: { unionId, personId: person.id } } });
-      }
-      await addPartner({ variables: { unionId, personId: parentId } });
-      return parentId;
+  const addExOf = (sex: Sex) =>
+    runRelative('spouse', async () => {
+      const exId = await blankPerson(sex);
+      const union = await createUnion({
+        variables: { input: { treeId, type: 'PARTNERSHIP' } },
+      });
+      const unionId = union.data!.createUnion.id;
+      await addPartner({ variables: { unionId, personId: person.id } });
+      await addPartner({ variables: { unionId, personId: exId } });
+      // Mark it dissolved so it reads as a past relationship.
+      await createEvent({ variables: { input: { unionId, type: 'DIVORCE' } } });
+      return exId;
     });
 
-  const addSibling = () =>
-    runRelative('sibling', async () => {
-      const siblingId = await blankPerson();
-      let unionId = person.parentUnions[0]?.id;
-      if (!unionId) {
-        const union = await createUnion({
-          variables: { input: { treeId, type: 'UNKNOWN' } },
-        });
-        unionId = union.data!.createUnion.id;
-        await addChild({ variables: { input: { unionId, personId: person.id } } });
-      }
-      await addChild({ variables: { input: { unionId, personId: siblingId } } });
-      return siblingId;
-    });
+  // A person already has at most two parents.
+  const twoParents = (person.parentUnions[0]?.partners.length ?? 0) >= 2;
 
-  const quickRelatives = [
-    { key: 'addParent' as const, icon: icons.parent, run: addParent },
-    { key: 'addSibling' as const, icon: icons.sibling, run: addSibling },
-    { key: 'addSpouse' as const, icon: icons.spouse, run: addSpouse },
-    { key: 'addChildRelative' as const, icon: icons.childRelative, run: addChildRelative },
+  const relatives: {
+    key: TranslationKey;
+    male: boolean;
+    disabled?: boolean;
+    run: () => void;
+  }[] = [
+    { key: 'relFather', male: true, disabled: twoParents, run: () => addParentOf('MALE') },
+    { key: 'relMother', male: false, disabled: twoParents, run: () => addParentOf('FEMALE') },
+    { key: 'relBrother', male: true, run: () => addSiblingOf('MALE') },
+    { key: 'relSister', male: false, run: () => addSiblingOf('FEMALE') },
+    { key: 'relHusband', male: true, run: () => addSpouseOf('MALE', 'MARRIAGE') },
+    { key: 'relWife', male: false, run: () => addSpouseOf('FEMALE', 'MARRIAGE') },
+    { key: 'relPartnerM', male: true, run: () => addSpouseOf('MALE', 'PARTNERSHIP') },
+    { key: 'relPartnerF', male: false, run: () => addSpouseOf('FEMALE', 'PARTNERSHIP') },
+    { key: 'relExM', male: true, run: () => addExOf('MALE') },
+    { key: 'relExF', male: false, run: () => addExOf('FEMALE') },
+    { key: 'relSon', male: true, run: () => addChildOf('MALE') },
+    { key: 'relDaughter', male: false, run: () => addChildOf('FEMALE') },
   ];
 
   return (
@@ -335,15 +337,16 @@ export function PersonPanel({
               id: person.id,
               input: {
                 firstName: current.firstName || null,
-                usualName: current.usualName || null,
                 lastName: current.lastName || null,
-                usedName: current.usedName || null,
+                birthName: current.birthName || null,
                 namePrefix: current.namePrefix || null,
                 nameSuffix: current.nameSuffix || null,
                 nickname: current.nickname || null,
                 sex: current.sex as Sex,
-                religion: current.religion as Religion,
                 notes: current.notes || null,
+                address: current.address || null,
+                email: current.email || null,
+                phone: current.phone || null,
               },
             },
           }).catch(fail);
@@ -357,61 +360,16 @@ export function PersonPanel({
             className={fieldClass}
           />
           <input
-            list="usual-name-options"
-            placeholder={t('usualNameL')}
-            value={current.usualName}
-            onChange={(e) => set('usualName', e.target.value)}
-            className={fieldClass}
-          />
-          <datalist id="usual-name-options">
-            {(current.firstName || '')
-              .split(/\s+/)
-              .filter(Boolean)
-              .map((name) => (
-                <option key={name} value={name} />
-              ))}
-          </datalist>
-          <input
-            placeholder={t('birthNameL')}
+            placeholder={t('familyNameL')}
             value={current.lastName}
             onChange={(e) => set('lastName', e.target.value)}
             className={fieldClass}
           />
-          <input
-            placeholder={t('usedNameL')}
-            value={current.usedName}
-            onChange={(e) => set('usedName', e.target.value)}
-            className={fieldClass}
-          />
-          <input
-            list="name-prefix-options"
-            placeholder={t('prefixL')}
-            value={current.namePrefix}
-            onChange={(e) => set('namePrefix', e.target.value)}
-            className={fieldClass}
-          />
-          <input
-            list="name-suffix-options"
-            placeholder={t('suffixL')}
-            value={current.nameSuffix}
-            onChange={(e) => set('nameSuffix', e.target.value)}
-            className={fieldClass}
-          />
-          <datalist id="name-prefix-options">
-            {NAME_PREFIXES.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
-          <datalist id="name-suffix-options">
-            {NAME_SUFFIXES.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
         </div>
         <input
-          placeholder={t('nicknameL')}
-          value={current.nickname}
-          onChange={(e) => set('nickname', e.target.value)}
+          placeholder={t('maidenNameL')}
+          value={current.birthName}
+          onChange={(e) => set('birthName', e.target.value)}
           className={fieldClass}
         />
         <select
@@ -426,25 +384,79 @@ export function PersonPanel({
             </option>
           ))}
         </select>
-        <select
-          aria-label={t('religionL')}
-          value={current.religion}
-          onChange={(e) => set('religion', e.target.value)}
-          className={fieldClass}
-        >
-          {RELIGIONS.map((value) => (
-            <option key={value} value={value}>
-              {enumLabel('religion', value, lang)}
-            </option>
-          ))}
-        </select>
-        <textarea
-          placeholder={t('notesL')}
-          rows={2}
-          value={current.notes}
-          onChange={(e) => set('notes', e.target.value)}
-          className={fieldClass}
-        />
+        <details className="rounded-xl border border-stone-200/70 px-3 py-2 dark:border-stone-700/60">
+          <summary className="cursor-pointer select-none text-xs font-medium text-stone-500 marker:text-stone-400 dark:text-stone-400">
+            {t('moreInfo')}
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <input
+              placeholder={t('nicknameL')}
+              value={current.nickname}
+              onChange={(e) => set('nickname', e.target.value)}
+              className={fieldClass}
+            />
+            <div className="flex gap-2">
+              <input
+                list="name-prefix-options"
+                placeholder={t('prefixL')}
+                value={current.namePrefix}
+                onChange={(e) => set('namePrefix', e.target.value)}
+                className={`${fieldClass} flex-1`}
+              />
+              <input
+                list="name-suffix-options"
+                placeholder={t('suffixL')}
+                value={current.nameSuffix}
+                onChange={(e) => set('nameSuffix', e.target.value)}
+                className={`${fieldClass} flex-1`}
+              />
+              <datalist id="name-prefix-options">
+                {NAME_PREFIXES.map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+              <datalist id="name-suffix-options">
+                {NAME_SUFFIXES.map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+            </div>
+            <textarea
+              placeholder={t('notesL')}
+              rows={2}
+              value={current.notes}
+              onChange={(e) => set('notes', e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+        </details>
+        <details className="rounded-xl border border-stone-200/70 px-3 py-2 dark:border-stone-700/60">
+          <summary className="cursor-pointer select-none text-xs font-medium text-stone-500 marker:text-stone-400 dark:text-stone-400">
+            {t('contactL')}
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <AddressField
+              value={current.address}
+              onChange={(v) => set('address', v)}
+              placeholder={t('addressL')}
+              className={fieldClass}
+            />
+            <input
+              type="email"
+              placeholder={t('emailL')}
+              value={current.email}
+              onChange={(e) => set('email', e.target.value)}
+              className={fieldClass}
+            />
+            <input
+              type="tel"
+              placeholder={t('phoneL')}
+              value={current.phone}
+              onChange={(e) => set('phone', e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+        </details>
         <button type="submit" disabled={updateState.loading} className={smallButton}>
           {updateState.loading ? t('submitting') : t('save')}
         </button>
@@ -452,15 +464,18 @@ export function PersonPanel({
 
       <Section title={t('quickRelatives')}>
         <div className="grid grid-cols-2 gap-2">
-          {quickRelatives.map(({ key, icon, run }) => (
+          {relatives.map(({ key, male, disabled, run }) => (
             <button
               key={key}
               type="button"
-              disabled={relBusy}
+              disabled={relBusy || disabled}
               onClick={run}
-              className="flex items-center justify-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-amber-300 hover:bg-amber-50 disabled:opacity-40 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+              className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-amber-300 hover:bg-amber-50 disabled:opacity-40 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
             >
-              <FontAwesomeIcon icon={icon} className="text-amber-600" />
+              <FontAwesomeIcon
+                icon={male ? icons.male : icons.female}
+                style={{ color: male ? M : F }}
+              />
               {t(key)}
             </button>
           ))}
@@ -476,138 +491,6 @@ export function PersonPanel({
         onChange={() => {}}
         onError={fail}
       />
-
-      <Section title={t('unionsLabel')}>
-        {person.unions.map((union) => {
-          const partners = union.partners.filter((p) => p.id !== person.id);
-          return (
-            <div
-              key={union.id}
-              className="mb-2 rounded-xl bg-amber-50 p-2.5 text-sm dark:bg-stone-800"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-stone-700 dark:text-stone-200">
-                  <FontAwesomeIcon icon={icons.ring} className="mr-1.5" />{' '}
-                  {partners.length
-                    ? partners.map((p) => personName(p)).join(', ')
-                    : '—'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onOpenUnion(union.id)}
-                  className={ghostButton}
-                >
-                  <FontAwesomeIcon icon={icons.pen} className="mr-1" />
-                  {t('editUnion')}
-                </button>
-              </div>
-              {union.children.length > 0 && (
-                <ul className="mt-1.5 space-y-1">
-                  {union.children.map((child) => (
-                    <li
-                      key={child.personId}
-                      className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400"
-                    >
-                      <span className="flex-1 truncate">
-                        <FontAwesomeIcon icon={icons.child} className="mr-1" />
-                        {personName(child.person)}
-                      </span>
-                      <select
-                        aria-label={t('pedigreeL')}
-                        value={child.pedigree}
-                        onChange={(e) =>
-                          void setPedigree({
-                            variables: {
-                              unionId: union.id,
-                              personId: child.personId,
-                              pedigree: e.target.value as Pedigree,
-                            },
-                          }).catch(fail)
-                        }
-                        className="rounded-md border border-stone-200 bg-transparent px-1 py-0.5 text-xs dark:border-stone-600"
-                      >
-                        {PEDIGREES.map((value) => (
-                          <option key={value} value={value}>
-                            {enumLabel('pedigree', value, lang)}
-                          </option>
-                        ))}
-                      </select>
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void removeChild({
-                              variables: {
-                                unionId: union.id,
-                                personId: child.personId,
-                              },
-                            }).catch(fail)
-                          }
-                          className={ghostButton}
-                        >
-                          <FontAwesomeIcon icon={icons.xmark} />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <select
-                aria-label={t('addChild')}
-                value=""
-                className="mt-1.5 w-full rounded-md border border-dashed border-stone-300 bg-transparent px-2 py-1 text-xs text-stone-500 dark:border-stone-600"
-                onChange={(e) => {
-                  if (!e.target.value) return;
-                  void addChild({
-                    variables: {
-                      input: { unionId: union.id, personId: e.target.value },
-                    },
-                  }).catch(fail);
-                }}
-              >
-                <option value="">{t('addChild')}</option>
-                {partnerCandidates
-                  .filter((p) => !union.children.some((c) => c.personId === p.id))
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {personName(p)}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          );
-        })}
-
-        <select
-          aria-label={t('addPartner')}
-          value=""
-          className="w-full rounded-lg border border-dashed border-stone-300 bg-transparent px-2 py-2 text-sm text-stone-500 dark:border-stone-600"
-          onChange={(e) => {
-            if (!e.target.value) return;
-            const partnerId = e.target.value;
-            void createUnion({ variables: { input: { treeId, type: 'MARRIAGE' } } })
-              .then((result) => {
-                const unionId = result.data?.createUnion.id;
-                if (!unionId) throw new Error();
-                return addPartner({
-                  variables: { unionId, personId: person.id },
-                }).then(() =>
-                  addPartner({ variables: { unionId, personId: partnerId } }),
-                );
-              })
-              .catch(fail);
-          }}
-        >
-          <option value="">{t('addPartner')}</option>
-          {partnerCandidates
-            .filter((p) => !forbiddenPartner(p.id))
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {personName(p)}
-              </option>
-            ))}
-        </select>
-      </Section>
 
       <MediaList
         treeId={treeId}

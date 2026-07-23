@@ -13,8 +13,7 @@ const PAD = 16;
 const ACCENT: Record<string, string> = {
   MALE: '#5f8a8f',
   FEMALE: '#c0714a',
-  OTHER: '#8a7aa8',
-  UNKNOWN: '#a8a29e',
+  NON_BINARY: '#8a7aa8',
 };
 
 const point = (cx: number, cy: number, r: number, a: number): [number, number] => [
@@ -72,8 +71,11 @@ export function FanChart({
       const ps = (parentUnion.get(id) ?? [])
         .map((pid) => byId.get(pid))
         .filter((p): p is TreePerson => Boolean(p));
-      const father = ps.find((p) => p.sex === 'MALE') ?? ps[0] ?? null;
-      const mother = ps.find((p) => p !== father) ?? null;
+      const male = ps.find((p) => p.sex === 'MALE') ?? null;
+      const female = ps.find((p) => p.sex === 'FEMALE' && p !== male) ?? null;
+      const rest = ps.filter((p) => p !== male && p !== female);
+      const father = male ?? rest.shift() ?? null;
+      const mother = female ?? rest.shift() ?? null;
       return [father, mother];
     };
     const rows: (TreePerson | null)[][] = [[byId.get(focusId) ?? null]];
@@ -115,7 +117,7 @@ export function FanChart({
           const a0 = Math.PI + k * step;
           const a1 = a0 + step;
           const mid = (a0 + a1) / 2;
-          const accent = ACCENT[cell?.sex ?? 'UNKNOWN'];
+          const accent = ACCENT[cell?.sex ?? 'NON_BINARY'];
           const [tx, ty] = point(cx, cy, (rInner + rOuter) / 2, mid);
           let deg = (mid * 180) / Math.PI;
           if (deg > 90 && deg < 270) deg += 180;
@@ -156,7 +158,7 @@ export function FanChart({
       {/* Focus half-disc */}
       <path
         d={sectorPath(cx, cy, 0, R0, Math.PI, 2 * Math.PI)}
-        fill={ACCENT[focus?.sex ?? 'UNKNOWN']}
+        fill={ACCENT[focus?.sex ?? 'NON_BINARY']}
         fillOpacity={0.22}
         className="stroke-white dark:stroke-stone-900"
         strokeWidth={2}

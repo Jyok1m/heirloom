@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { rethrowAsNotFound } from '../common/prisma-errors';
-import { MediaType } from '../generated/prisma/enums';
+import { EventType, MediaType } from '../generated/prisma/enums';
 import { MediaService } from '../media/media.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePersonInput, UpdatePersonInput } from './dto/person.inputs';
@@ -33,9 +33,14 @@ export class PersonsService {
 
   async create({ treeId, ...data }: CreatePersonInput) {
     try {
-      return await this.prisma.person.create({
+      const person = await this.prisma.person.create({
         data: { ...data, tree: { connect: { id: treeId } } },
       });
+      // Everyone is born: seed the birth event so only its date is left to fill.
+      await this.prisma.event.create({
+        data: { type: EventType.BIRTH, personId: person.id },
+      });
+      return person;
     } catch (error) {
       rethrowAsNotFound(error, 'Tree', treeId);
     }

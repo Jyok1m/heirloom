@@ -1,52 +1,27 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
-import type { Pedigree, Sex, UnionType } from '../../generated/graphql';
-import {
-  bloodRelatives,
-  coupledPeople,
-  enumLabel,
-  PEDIGREES,
-  UNION_TYPES,
-} from '../../lib/genealogy';
+import type { UnionType } from '../../generated/graphql';
+import { enumLabel, UNION_TYPES } from '../../lib/genealogy';
 import { icons } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { useNotify } from '../../lib/notify';
-import type { TreeUnion } from '../tree2d/layout';
 import { EventList } from './EventList';
 import {
-  ADD_CHILD,
-  ADD_PARTNER,
-  CREATE_PERSON,
   DELETE_UNION,
   REMOVE_CHILD,
   REMOVE_PARTNER,
-  SET_PEDIGREE,
   UNION_DETAIL,
   UPDATE_UNION,
 } from './operations';
-import {
-  fieldClass,
-  ghostButton,
-  personName,
-  Section,
-  smallButton,
-} from './ui';
-
-interface NamedPerson {
-  id: string;
-  firstName?: string | null;
-  usualName?: string | null;
-  lastName?: string | null;
-  usedName?: string | null;
-}
+import { fieldClass, ghostButton, personName, Section } from './ui';
 
 const REFETCH = ['UnionDetail', 'TreeCanvas', 'PersonDetail'];
 
+// Relationships are built with the person panel's quick-relative buttons; this
+// panel only edits the union itself (type, date, and corrections).
 export function UnionPanel({
   unionId,
-  others,
-  unions,
   sources,
   isAdmin,
   onError,
@@ -54,8 +29,6 @@ export function UnionPanel({
   onDeleted,
 }: {
   unionId: string;
-  others: NamedPerson[];
-  unions: TreeUnion[];
   sources: { id: string; title: string }[];
   isAdmin: boolean;
   onError(): void;
@@ -67,14 +40,10 @@ export function UnionPanel({
   const { data } = useQuery(UNION_DETAIL, { variables: { id: unionId } });
   const [updateUnion] = useMutation(UPDATE_UNION, { refetchQueries: REFETCH });
   const [deleteUnion] = useMutation(DELETE_UNION, { refetchQueries: REFETCH });
-  const [createPerson] = useMutation(CREATE_PERSON, { refetchQueries: REFETCH });
-  const [addPartner] = useMutation(ADD_PARTNER, { refetchQueries: REFETCH });
   const [removePartner] = useMutation(REMOVE_PARTNER, {
     refetchQueries: REFETCH,
   });
-  const [addChild] = useMutation(ADD_CHILD, { refetchQueries: REFETCH });
   const [removeChild] = useMutation(REMOVE_CHILD, { refetchQueries: REFETCH });
-  const [setPedigree] = useMutation(SET_PEDIGREE, { refetchQueries: REFETCH });
 
   const [notes, setNotes] = useState<string | null>(null);
   const union = data?.union;
@@ -87,35 +56,6 @@ export function UnionPanel({
       </div>
     );
   }
-
-  const partnerIds = new Set(union.partners.map((p) => p.id));
-  const childIds = new Set(union.children.map((c) => c.personId));
-
-  // Bar the current partners' blood relatives (incest) and anyone already in a
-  // couple from the "add partner" list.
-  const relativeIds = new Set<string>();
-  for (const partner of union.partners) {
-    for (const id of bloodRelatives(partner.id, unions)) relativeIds.add(id);
-  }
-  const coupled = coupledPeople(unions);
-  const forbiddenPartner = (id: string) =>
-    partnerIds.has(id) ||
-    childIds.has(id) ||
-    relativeIds.has(id) ||
-    coupled.has(id);
-
-  const createPartner = () =>
-    void createPerson({
-      variables: { input: { treeId: union.treeId, sex: 'UNKNOWN' as Sex } },
-    })
-      .then((res) => {
-        const newId = res.data?.createPerson.id;
-        if (!newId) throw new Error('create failed');
-        return addPartner({
-          variables: { unionId: union.id, personId: newId },
-        }).then(() => onSelectPerson(newId));
-      })
-      .catch(fail);
 
   return (
     <div>
@@ -185,113 +125,42 @@ export function UnionPanel({
             </div>
           ))}
         </div>
-        {union.partners.length < 2 && (
-          <div className="mt-1.5 flex gap-2">
-            <select
-              aria-label={t('addPartner')}
-              value=""
-              className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 bg-transparent px-2 py-1.5 text-sm text-stone-500 dark:border-stone-600"
-              onChange={(e) => {
-                if (!e.target.value) return;
-                void addPartner({
-                  variables: { unionId: union.id, personId: e.target.value },
-                }).catch(fail);
-              }}
-            >
-              <option value="">{t('addPartner')}</option>
-              {others
-                .filter((p) => !forbiddenPartner(p.id))
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {personName(p)}
-                  </option>
-                ))}
-            </select>
-            <button
-              type="button"
-              onClick={createPartner}
-              className={`${smallButton} shrink-0 whitespace-nowrap`}
-            >
-              + {t('newPerson')}
-            </button>
-          </div>
-        )}
       </Section>
 
-      <Section title={t('childrenLabel')}>
-        <div className="flex flex-col gap-1.5">
-          {union.children.map((child) => (
-            <div
-              key={child.personId}
-              className="flex items-center gap-2 rounded-lg bg-stone-50 px-2.5 py-1.5 text-sm dark:bg-stone-800/70"
-            >
-              <button
-                type="button"
-                onClick={() => onSelectPerson(child.personId)}
-                className="min-w-0 flex-1 truncate text-left text-stone-700 hover:underline dark:text-stone-200"
+      {union.children.length > 0 && (
+        <Section title={t('childrenLabel')}>
+          <div className="flex flex-col gap-1.5">
+            {union.children.map((child) => (
+              <div
+                key={child.personId}
+                className="flex items-center gap-2 rounded-lg bg-stone-50 px-2.5 py-1.5 text-sm dark:bg-stone-800/70"
               >
-                <FontAwesomeIcon icon={icons.child} className="mr-1.5" />
-                {personName(child.person)}
-              </button>
-              <select
-                aria-label={t('pedigreeL')}
-                value={child.pedigree}
-                onChange={(e) =>
-                  void setPedigree({
-                    variables: {
-                      unionId: union.id,
-                      personId: child.personId,
-                      pedigree: e.target.value as Pedigree,
-                    },
-                  }).catch(fail)
-                }
-                className="rounded-md border border-stone-200 bg-transparent px-1 py-0.5 text-xs dark:border-stone-600"
-              >
-                {PEDIGREES.map((value) => (
-                  <option key={value} value={value}>
-                    {enumLabel('pedigree', value, lang)}
-                  </option>
-                ))}
-              </select>
-              {isAdmin && (
                 <button
                   type="button"
-                  onClick={() =>
-                    void removeChild({
-                      variables: { unionId: union.id, personId: child.personId },
-                    }).catch(fail)
-                  }
-                  className={ghostButton}
+                  onClick={() => onSelectPerson(child.personId)}
+                  className="min-w-0 flex-1 truncate text-left text-stone-700 hover:underline dark:text-stone-200"
                 >
-                  <FontAwesomeIcon icon={icons.xmark} />
+                  <FontAwesomeIcon icon={icons.child} className="mr-1.5" />
+                  {personName(child.person)}
                 </button>
-              )}
-            </div>
-          ))}
-        </div>
-        <select
-          aria-label={t('addChild')}
-          value=""
-          className="mt-1.5 w-full rounded-lg border border-dashed border-stone-300 bg-transparent px-2 py-1.5 text-sm text-stone-500 dark:border-stone-600"
-          onChange={(e) => {
-            if (!e.target.value) return;
-            void addChild({
-              variables: {
-                input: { unionId: union.id, personId: e.target.value },
-              },
-            }).catch(fail);
-          }}
-        >
-          <option value="">{t('addChild')}</option>
-          {others
-            .filter((p) => !partnerIds.has(p.id) && !childIds.has(p.id))
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {personName(p)}
-              </option>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void removeChild({
+                        variables: { unionId: union.id, personId: child.personId },
+                      }).catch(fail)
+                    }
+                    className={ghostButton}
+                  >
+                    <FontAwesomeIcon icon={icons.xmark} />
+                  </button>
+                )}
+              </div>
             ))}
-        </select>
-      </Section>
+          </div>
+        </Section>
+      )}
 
       <EventList
         ownerType="union"

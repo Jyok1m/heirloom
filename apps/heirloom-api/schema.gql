@@ -40,17 +40,19 @@ input CreateMediaInput {
 }
 
 input CreatePersonInput {
+  address: String
+  birthName: String
+  email: String
   firstName: String
   lastName: String
   namePrefix: String
   nameSuffix: String
   nickname: String
   notes: String
+  phone: String
   religion: Religion
   sex: Sex
   treeId: ID!
-  usedName: String
-  usualName: String
 }
 
 input CreateSourceInput {
@@ -193,9 +195,12 @@ enum Pedigree {
 }
 
 type Person {
+  address: String
   birthDate: String
+  birthName: String
   createdAt: DateTime!
   deceased: Boolean!
+  email: String
   events: [Event!]!
   firstName: String
   gedcomId: String
@@ -207,14 +212,13 @@ type Person {
   nickname: String
   notes: String
   parentUnions: [Union!]!
+  phone: String
   photoMediaId: ID
   religion: Religion!
   sex: Sex!
   treeId: ID!
   unions: [Union!]!
   updatedAt: DateTime!
-  usedName: String
-  usualName: String
 }
 
 type Query {
@@ -241,8 +245,7 @@ enum Religion {
 enum Sex {
   FEMALE
   MALE
-  OTHER
-  UNKNOWN
+  NON_BINARY
 }
 
 type Source {
@@ -276,6 +279,7 @@ type Tree {
 type Union {
   children: [UnionChild!]!
   createdAt: DateTime!
+  dissolved: Boolean!
   events: [Event!]!
   gedcomId: String
   id: ID!
@@ -329,17 +333,19 @@ input UpdateMediaInput {
 }
 
 input UpdatePersonInput {
+  address: String
+  birthName: String
+  email: String
   firstName: String
   lastName: String
   namePrefix: String
   nameSuffix: String
   nickname: String
   notes: String
+  phone: String
   photoMediaId: ID
   religion: Religion
   sex: Sex
-  usedName: String
-  usualName: String
 }
 
 input UpdateSourceInput {

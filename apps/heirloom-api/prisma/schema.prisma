@@ -13,12 +13,11 @@ datasource db {
 // Enums
 // ---------------------------------------------------------------------------
 
-// GEDCOM SEX: M / F / U (X kept for intersex/other, exported as U)
+// Simplified to the three choices offered in the UI (GEDCOM SEX: M / F / X)
 enum Sex {
   MALE
   FEMALE
-  OTHER
-  UNKNOWN
+  NON_BINARY
 }
 
 // GEDCOM FAM: MARR is an event, the union itself is typed here
@@ -175,20 +174,23 @@ model Person {
   // GEDCOM xref (@I1@) preserved on import for round-trip export
   gedcomId String?
 
+  // Given names, comma-separated ("Jean, Pierre, Marie")
   firstName String?
-  // Preferred given name among firstName ("prénom usuel", GEDCOM _RUFNAME)
-  usualName String?
   lastName  String?
-  // Everyday / married name shown in place of lastName ("nom d'usage")
-  usedName  String?
+  // Birth / maiden surname ("nom de naissance"), optional
+  birthName String?
   // GEDCOM NPFX / NSFX / NICK
   namePrefix String?
   nameSuffix String?
   nickname   String?
-  sex        Sex     @default(UNKNOWN)
+  sex        Sex     @default(MALE)
   // GEDCOM RELI; selects the religion-specific death marker on the card
   religion   Religion @default(NEUTRAL)
   notes      String?
+  // Contact details (address is geocoded client-side via data.geopf.fr)
+  address    String?
+  email      String?
+  phone      String?
 
   // Chosen profile picture. FK to a Media of the same tree; cleared (SetNull)
   // if that media is deleted. The card shows it in place of the initials.

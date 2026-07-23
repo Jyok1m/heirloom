@@ -48,7 +48,7 @@ function AddPersonForm({
   const { t, lang } = useI18n();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [sex, setSex] = useState('UNKNOWN');
+  const [sex, setSex] = useState('MALE');
   const [createPerson, { loading }] = useMutation(CREATE_PERSON, {
     refetchQueries: ['TreeCanvas'],
   });
@@ -78,30 +78,34 @@ function AddPersonForm({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input
           autoFocus
-          placeholder={t('firstNameL')}
+          placeholder={t('firstNamesL')}
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           className={fieldClass}
         />
         <input
-          placeholder={t('lastNameL')}
+          placeholder={t('familyNameL')}
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
           className={fieldClass}
         />
       </div>
-      <select
-        aria-label={t('sexL')}
-        value={sex}
-        onChange={(e) => setSex(e.target.value)}
-        className={fieldClass}
-      >
+      <div className="grid grid-cols-3 gap-2">
         {SEXES.map((value) => (
-          <option key={value} value={value}>
+          <button
+            key={value}
+            type="button"
+            onClick={() => setSex(value)}
+            className={`rounded-lg border px-2 py-2 text-sm font-medium transition ${
+              sex === value
+                ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-stone-800 dark:text-amber-300'
+                : 'border-stone-200 text-stone-500 hover:border-amber-300 dark:border-stone-700 dark:text-stone-300'
+            }`}
+          >
             {enumLabel('sex', value, lang)}
-          </option>
+          </button>
         ))}
-      </select>
+      </div>
       <button type="submit" disabled={loading} className={smallButton}>
         {loading ? t('submitting') : t('createAction')}
       </button>
@@ -180,6 +184,8 @@ export function TreeView() {
     () =>
       tree?.unions.map((union) => ({
         id: union.id,
+        type: union.type,
+        dissolved: union.dissolved,
         partnerIds: union.partners.map((p) => p.id),
         childIds: union.children.map((c) => c.person.id),
       })) ?? [],
@@ -355,13 +361,10 @@ export function TreeView() {
               key={panel.id}
               personId={panel.id}
               treeId={id}
-              others={others}
-              unions={treeUnions}
               selfPersonId={selfId}
               sources={sources}
               isAdmin={isAdmin ?? false}
               onError={fail}
-              onOpenUnion={(unionId) => setPanel({ kind: 'union', id: unionId })}
               onOpenPerson={(pid) => setPanel({ kind: 'person', id: pid })}
               onPlaceRelative={placeRelative}
             />
@@ -370,8 +373,6 @@ export function TreeView() {
             <UnionPanel
               key={panel.id}
               unionId={panel.id}
-              others={others}
-              unions={treeUnions}
               sources={sources}
               isAdmin={isAdmin ?? false}
               onError={fail}

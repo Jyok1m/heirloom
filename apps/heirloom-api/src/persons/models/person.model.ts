@@ -15,16 +15,12 @@ export class Person {
   @Field(() => String, { nullable: true })
   firstName!: string | null;
 
-  // Preferred given name ("prénom usuel") among firstName
-  @Field(() => String, { nullable: true })
-  usualName!: string | null;
-
   @Field(() => String, { nullable: true })
   lastName!: string | null;
 
-  // Everyday / married name ("nom d'usage"), shown in place of lastName
+  // Birth / maiden surname ("nom de naissance")
   @Field(() => String, { nullable: true })
-  usedName!: string | null;
+  birthName!: string | null;
 
   @Field(() => String, { nullable: true })
   namePrefix!: string | null;
@@ -43,6 +39,15 @@ export class Person {
 
   @Field(() => String, { nullable: true })
   notes!: string | null;
+
+  @Field(() => String, { nullable: true })
+  address!: string | null;
+
+  @Field(() => String, { nullable: true })
+  email!: string | null;
+
+  @Field(() => String, { nullable: true })
+  phone!: string | null;
 
   // Media id of the chosen profile picture, served via /api/media/:id/file
   @Field(() => ID, { nullable: true })

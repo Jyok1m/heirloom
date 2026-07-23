@@ -16,8 +16,7 @@ import {
 const SEX_ACCENT: Record<TreePerson['sex'], string> = {
   MALE: '#5f8a8f',
   FEMALE: '#c0714a',
-  OTHER: '#8a7aa8',
-  UNKNOWN: '#a8a29e',
+  NON_BINARY: '#8a7aa8',
 };
 
 const initials = (person: TreePerson): string => displayInitials(person);
@@ -459,14 +458,37 @@ export function TreeCanvas({
               .map((id) => centers.get(id))
               .filter((c): c is { cx: number; cy: number } => !!c);
             if (pts.length !== 2) return null;
+            const [a, b] = pts;
+            const mx = (a.cx + b.cx) / 2;
+            const my = (a.cy + b.cy) / 2;
+            // Marriage = solid; civil union / partnership = dashed; a dissolved
+            // union (divorce / annulment) is greyed with a double-slash mark.
+            const dashed =
+              union.type === 'CIVIL_UNION' || union.type === 'PARTNERSHIP';
             return (
-              <path
-                key={`p-${union.id}`}
-                d={`M ${pts[0].cx} ${pts[0].cy} L ${pts[1].cx} ${pts[1].cy}`}
-                fill="none"
-                className="stroke-amber-400/70 dark:stroke-amber-600/60"
-                strokeWidth={2.5}
-              />
+              <g key={`p-${union.id}`}>
+                <path
+                  d={`M ${a.cx} ${a.cy} L ${b.cx} ${b.cy}`}
+                  fill="none"
+                  className={
+                    union.dissolved
+                      ? 'stroke-stone-300 dark:stroke-stone-600'
+                      : 'stroke-amber-400/70 dark:stroke-amber-600/60'
+                  }
+                  strokeWidth={2.5}
+                  strokeDasharray={dashed ? '6 5' : undefined}
+                />
+                {union.dissolved && (
+                  <g
+                    className="stroke-stone-400 dark:stroke-stone-500"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                  >
+                    <line x1={mx - 7} y1={my + 6} x2={mx - 1} y2={my - 6} />
+                    <line x1={mx + 1} y1={my + 6} x2={mx + 7} y2={my - 6} />
+                  </g>
+                )}
+              </g>
             );
           })}
           {layout.unions.map(({ union, x, y }) =>
@@ -479,7 +501,9 @@ export function TreeCanvas({
                 className={
                   union.id === selectedUnionId
                     ? 'fill-amber-500 stroke-amber-300'
-                    : 'fill-amber-500'
+                    : union.dissolved
+                      ? 'fill-stone-400'
+                      : 'fill-amber-500'
                 }
                 strokeWidth={3}
               />
@@ -564,10 +588,7 @@ export function TreeCanvas({
                     className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-white text-stone-500 ring-1 ring-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:ring-stone-600"
                   >
                     <FontAwesomeIcon
-                      icon={
-                        DEATH_SYMBOL[person.religion ?? 'NEUTRAL'] ??
-                        DEATH_SYMBOL.NEUTRAL
-                      }
+                      icon={DEATH_SYMBOL.NEUTRAL}
                       className="text-[8px]"
                     />
                   </span>

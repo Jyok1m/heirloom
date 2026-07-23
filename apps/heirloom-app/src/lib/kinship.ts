@@ -99,10 +99,13 @@ export function computeKinships(
       if (a === 0) return { kind: 'descendant', gen: b };
       if (b === 0) return { kind: 'ancestor', gen: a };
       if (a === 1 && b === 1) {
-        const shared = [...(parents.get(t) ?? [])].filter((p) =>
-          selfParents.has(p),
-        ).length;
-        return { kind: 'sibling', half: shared < 2 };
+        const tParents = parents.get(t) ?? EMPTY;
+        const shared = [...tParents].filter((p) => selfParents.has(p)).length;
+        // Only claim half-sibling on positive evidence: both have two recorded
+        // parents and exactly one differs. Missing parents read as full sibling.
+        const half =
+          tParents.size >= 2 && selfParents.size >= 2 && shared < 2;
+        return { kind: 'sibling', half };
       }
       if (a === 1) return { kind: 'nibling', gen: b };
       if (b === 1) return { kind: 'pibling', gen: a };
@@ -180,14 +183,14 @@ export function kinshipLabel(
           ? g('Oncle', 'Tante', 'Oncle/Tante')
           : cap(
               repeat('arrière-', kin.gen - 3) +
-                g('grand-oncle', 'grand-tante', 'grand-oncle'),
+                g('grand-oncle', 'grand-tante', 'grand-oncle/grand-tante'),
             );
       case 'nibling':
         return kin.gen === 2
           ? g('Neveu', 'Nièce', 'Neveu/Nièce')
           : cap(
               repeat('arrière-', kin.gen - 3) +
-                g('petit-neveu', 'petite-nièce', 'petit-neveu'),
+                g('petit-neveu', 'petite-nièce', 'petit-neveu/petite-nièce'),
             );
       case 'cousin':
         return kin.degree === 1 && kin.removed === 0
@@ -220,11 +223,11 @@ export function kinshipLabel(
     case 'pibling':
       return kin.gen === 2
         ? g('Uncle', 'Aunt', 'Uncle/Aunt')
-        : cap(repeat('great-', kin.gen - 2) + g('uncle', 'aunt', 'uncle'));
+        : cap(repeat('great-', kin.gen - 2) + g('uncle', 'aunt', 'uncle/aunt'));
     case 'nibling':
       return kin.gen === 2
         ? g('Nephew', 'Niece', 'Nephew/Niece')
-        : cap(repeat('great-', kin.gen - 2) + g('nephew', 'niece', 'nephew'));
+        : cap(repeat('great-', kin.gen - 2) + g('nephew', 'niece', 'nephew/niece'));
     case 'cousin':
       return kin.degree === 1 && kin.removed === 0 ? 'First cousin' : 'Cousin';
     case 'parent-in-law':

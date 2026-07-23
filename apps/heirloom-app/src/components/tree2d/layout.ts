@@ -5,21 +5,21 @@
 export interface TreePerson {
   id: string;
   firstName: string | null;
-  usualName?: string | null;
   lastName: string | null;
-  usedName?: string | null;
-  sex: 'MALE' | 'FEMALE' | 'OTHER' | 'UNKNOWN';
+  sex: 'MALE' | 'FEMALE' | 'NON_BINARY';
   // Card extras (optional so callers can omit them)
   photoMediaId?: string | null;
   birthDate?: string | null;
   deceased?: boolean | null;
-  religion?: 'CATHOLIC' | 'JEWISH' | 'MUSLIM' | 'NEUTRAL' | null;
 }
 
 export interface TreeUnion {
   id: string;
   partnerIds: string[];
   childIds: string[];
+  // Link styling: union type and whether it's dissolved (divorce/annulment)
+  type?: 'MARRIAGE' | 'CIVIL_UNION' | 'PARTNERSHIP' | 'UNKNOWN' | null;
+  dissolved?: boolean | null;
 }
 
 export interface PersonBox {
@@ -191,12 +191,13 @@ export function layoutTree(
   // line up under their parents and family branches don't cross.
   const orderedByGen = new Map<number, TreePerson[]>();
   const indexInGen = new Map<string, number>();
+  const personIndex = new Map(persons.map((p, i) => [p.id, i]));
   const sortedGens = [...byGeneration.keys()].sort((a, b) => a - b);
   for (const gen of sortedGens) {
     const members = byGeneration.get(gen) ?? [];
     const keyOf =
       gen === sortedGens[0]
-        ? (id: string) => persons.findIndex((p) => p.id === id)
+        ? (id: string) => personIndex.get(id) ?? -1
         : (id: string) => {
             const placed = (parentsOf.get(id) ?? []).filter((pid) =>
               indexInGen.has(pid),
@@ -239,13 +240,31 @@ export function layoutTree(
       .filter((x): x is number => x !== undefined);
     return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : undefined;
   };
-  // Keep the row's order, enforcing the minimum gap (order already avoids
-  // crossings, so only spacing needs fixing).
-  const pack = (members: TreePerson[]) => {
-    for (let i = 1; i < members.length; i++) {
-      const min = (xById.get(members[i - 1].id) ?? 0) + SPACING;
-      if ((xById.get(members[i].id) ?? 0) < min) {
-        xById.set(members[i].id, min);
+  // Place a generation in its fixed order with a one-card minimum gap while
+  // staying as close as possible (least squares) to each node's desired x, so a
+  // couple/sibling block centres on its barycentre instead of drifting right.
+  // Pool-adjacent-violators on y = x - i*SPACING (non-decreasing y ⇔ gap ≥ S).
+  const place = (members: TreePerson[]) => {
+    const n = members.length;
+    if (n === 0) return;
+    const stack: { val: number; wt: number; len: number }[] = [];
+    for (let i = 0; i < n; i++) {
+      let val = (xById.get(members[i].id) ?? 0) - i * SPACING;
+      let wt = 1;
+      let len = 1;
+      while (stack.length && stack[stack.length - 1].val >= val) {
+        const top = stack.pop() as { val: number; wt: number; len: number };
+        const total = top.wt + wt;
+        val = (top.val * top.wt + val * wt) / total;
+        wt = total;
+        len = top.len + len;
+      }
+      stack.push({ val, wt, len });
+    }
+    let i = 0;
+    for (const block of stack) {
+      for (let k = 0; k < block.len; k++, i++) {
+        xById.set(members[i].id, block.val + i * SPACING);
       }
     }
   };
@@ -263,7 +282,7 @@ export function layoutTree(
         );
         if (desired !== undefined) xById.set(person.id, desired);
       }
-      pack(members);
+      place(members);
     }
   }
 

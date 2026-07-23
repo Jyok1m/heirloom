@@ -68,7 +68,6 @@ function EventForm({
   const [dateValue, setDateValue] = useState(initial?.dateValue ?? '');
   const [place, setPlace] = useState(initial?.place ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [notes, setNotes] = useState(initial?.notes ?? '');
 
   return (
     <form
@@ -91,7 +90,6 @@ function EventForm({
                 : null,
           place: place || null,
           description: description || null,
-          notes: notes || null,
         });
       }}
     >
@@ -138,13 +136,6 @@ function EventForm({
         placeholder={t('placeL')}
         value={place}
         onChange={(e) => setPlace(e.target.value)}
-        className={fieldClass}
-      />
-      <textarea
-        placeholder={t('notesL')}
-        rows={2}
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
         className={fieldClass}
       />
       <div className="flex gap-2">

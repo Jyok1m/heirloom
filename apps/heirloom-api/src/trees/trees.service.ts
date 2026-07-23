@@ -12,6 +12,9 @@ const DEATH_TYPES: EventType[] = [
   EventType.CREMATION,
 ];
 
+// A union with one of these events is shown as dissolved (divorced/annulled)
+const DISSOLVED_TYPES: EventType[] = [EventType.DIVORCE, EventType.ANNULMENT];
+
 @Injectable()
 export class TreesService {
   constructor(
@@ -70,11 +73,8 @@ export class TreesService {
           select: {
             id: true,
             firstName: true,
-            usualName: true,
             lastName: true,
-            usedName: true,
             sex: true,
-            religion: true,
             photoMediaId: true,
             events: { select: { type: true, dateValue: true } },
           },
@@ -82,8 +82,10 @@ export class TreesService {
         unions: {
           select: {
             id: true,
+            type: true,
             partners: { select: { personId: true } },
             children: { select: { personId: true } },
+            events: { select: { type: true } },
           },
         },
       },
@@ -100,6 +102,8 @@ export class TreesService {
       })),
       unions: tree.unions.map((union) => ({
         id: union.id,
+        type: union.type,
+        dissolved: union.events.some((e) => DISSOLVED_TYPES.includes(e.type)),
         partnerIds: union.partners.map((partner) => partner.personId),
         childIds: union.children.map((child) => child.personId),
       })),

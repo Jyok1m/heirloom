@@ -16,13 +16,8 @@ export class CreatePersonInput {
 
   @Field({ nullable: true })
   @IsOptional()
-  @MaxLength(200)
+  @MaxLength(500)
   firstName?: string;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @MaxLength(200)
-  usualName?: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -32,7 +27,7 @@ export class CreatePersonInput {
   @Field({ nullable: true })
   @IsOptional()
   @MaxLength(200)
-  usedName?: string;
+  birthName?: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -63,6 +58,21 @@ export class CreatePersonInput {
   @IsOptional()
   @MaxLength(20_000)
   notes?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @MaxLength(500)
+  address?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @MaxLength(200)
+  email?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @MaxLength(50)
+  phone?: string;
 }
 
 // treeId is immutable: a person never moves to another tree. photoMediaId is

@@ -153,13 +153,7 @@ export function PublicTreeView() {
           )}
           {selected.deceased && (
             <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-              <FontAwesomeIcon
-                icon={
-                  DEATH_SYMBOL[selected.religion ?? 'NEUTRAL'] ??
-                  DEATH_SYMBOL.NEUTRAL
-                }
-                className="mr-1.5"
-              />
+              <FontAwesomeIcon icon={DEATH_SYMBOL.NEUTRAL} className="mr-1.5" />
               {t('deceased')}
             </p>
           )}

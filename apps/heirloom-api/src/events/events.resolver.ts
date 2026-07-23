@@ -22,6 +22,9 @@ const DEATH_TYPES: EventType[] = [
   EventType.CREMATION,
 ];
 
+// Events that mark a union as dissolved (divorce / annulment)
+const DISSOLVED_TYPES: EventType[] = [EventType.DIVORCE, EventType.ANNULMENT];
+
 @Resolver(() => Event)
 export class EventsResolver {
   constructor(
@@ -94,5 +97,12 @@ export class UnionEventsResolver {
   @ResolveField(() => [Event])
   events(@Parent() union: Union) {
     return this.loaders.eventsByUnionId.load(union.id);
+  }
+
+  // Card marker: true once a divorce/annulment is recorded on the union
+  @ResolveField(() => Boolean)
+  async dissolved(@Parent() union: Union): Promise<boolean> {
+    const events = await this.loaders.eventsByUnionId.load(union.id);
+    return events.some((e) => DISSOLVED_TYPES.includes(e.type));
   }
 }
